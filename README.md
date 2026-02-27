@@ -57,7 +57,7 @@ npm run build
 
 ## Language
 
-Currently FlashMap is developed and available only in French, but your contribution to port FlashMap into another language will be greatly appreciated.
+Currently FlashMap is developed and available only in French, but your contribution to translate FlashMap into another language will be greatly appreciated.
 
 ## Contributing
 
