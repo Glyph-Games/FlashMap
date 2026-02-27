@@ -1,4 +1,5 @@
 ![FlashMap Logo](https://iili.io/K8e4zLF.png)
+
 An open source React application made to simplify learning at school
 
 ## Features
