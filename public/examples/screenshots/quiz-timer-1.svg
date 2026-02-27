@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444"/>
+      <stop offset="100%" style="stop-color:#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" rx="16" fill="url(#bg1)"/>
+  <text x="400" y="180" text-anchor="middle" font-family="system-ui, sans-serif" font-size="48" font-weight="bold" fill="white">Quiz Chrono</text>
+  <text x="400" y="230" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" fill="rgba(255,255,255,0.85)">Interface principale du jeu</text>
+  <rect x="200" y="280" width="400" height="60" rx="12" fill="rgba(255,255,255,0.2)"/>
+  <text x="400" y="318" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" fill="white">00:30</text>
+  <circle cx="400" cy="380" r="8" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="430" cy="380" r="8" fill="rgba(255,255,255,0.3)"/>
+  <circle cx="460" cy="380" r="8" fill="rgba(255,255,255,0.3)"/>
+</svg>

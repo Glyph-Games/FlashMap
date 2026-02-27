@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashmap - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes expandBox {
+      from {
+        opacity: 0;
+        transform: scaleX(0.3);
+        transform-origin: left center;
+      }
+      to {
+        opacity: 1;
+        transform: scaleX(1);
+        transform-origin: left center;
+      }
+    }
+
+    @keyframes collapseBox {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+        transform-origin: left center;
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+        transform-origin: left center;
+      }
+    }
+
+    .animate-expand {
+      animation: expandBox 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: left center;
+    }
+
+    .animate-collapse {
+      animation: collapseBox 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: left center;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 min-h-screen">
+
+  <!-- Login Page -->
+  <div id="loginPage" class="min-h-screen relative">
+    <div class="absolute top-0 left-0 right-0 py-8 text-center">
+      <img src="https://iili.io/fHK5ihv.png" alt="Flashmap Logo" class="h-16 mx-auto object-contain animate-fade-in">
+    </div>
+
+    <div class="min-h-screen flex items-center justify-center px-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">Se connecter au panneau d'administration FlashMap</h2>
+
+        <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom d'utilisateur</label>
+          <input
+            type="text"
+            id="usernameInput"
+            placeholder="Entrez votre nom d'utilisateur..."
+            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
+          <input
+            type="password"
+            id="passwordInput"
+            placeholder="Entrez le mot de passe..."
+            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+            required
+          />
+        </div>
+
+        <div id="errorMessage" class="hidden text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg"></div>
+
+        <button
+          type="submit"
+          class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 font-medium shadow-lg"
+        >
+          Se connecter
+        </button>
+      </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Dashboard -->
+  <div id="adminDashboard" class="hidden min-h-screen p-6">
+    <!-- Header -->
+    <div class="p-6 mb-6 animate-fade-in">
+      <div class="flex justify-between items-start">
+        <div>
+          <img src="https://iili.io/fHK5ihv.png" alt="Flashmap Logo" class="h-12 mb-2 object-contain">
+          <p class="text-gray-700 text-sm">Connecté en tant que <span id="currentUser" class="font-semibold text-purple-600"></span></p>
+        </div>
+        <button
+          onclick="logout()"
+          class="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all shadow-lg"
+          title="Déconnexion"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white rounded-t-xl shadow-lg animate-fade-in border-b-2 border-gray-200">
+      <div class="flex">
+        <button
+          onclick="showTab('dashboard')"
+          id="tab-dashboard"
+          class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+        >
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          Dashboard
+        </button>
+        <button
+          onclick="showTab('shares')"
+          id="tab-shares"
+          class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+        >
+          <i data-lucide="share-2" class="w-5 h-5"></i>
+          Partages
+        </button>
+        <button
+          onclick="showTab('analytics')"
+          id="tab-analytics"
+          class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+        >
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+          Analytics
+        </button>
+        <button
+          onclick="showTab('settings')"
+          id="tab-settings"
+          class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+        >
+          <i data-lucide="settings" class="w-5 h-5"></i>
+          Paramètres
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Content Container -->
+    <div class="bg-white rounded-b-xl shadow-lg p-6 mb-6">
+
+    <!-- Dashboard Tab -->
+    <div id="content-dashboard" class="tab-content">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <!-- Stat Card 1 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <i data-lucide="book-open" class="w-6 h-6 text-purple-600"></i>
+            </div>
+          </div>
+          <h3 class="text-gray-600 text-sm font-medium mb-1">Total de partages</h3>
+          <p class="text-3xl font-bold text-gray-800" id="totalShares">-</p>
+        </div>
+
+        <!-- Stat Card 2 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+            </div>
+          </div>
+          <h3 class="text-gray-600 text-sm font-medium mb-1">Partages actifs</h3>
+          <p class="text-3xl font-bold text-gray-800" id="activeShares">-</p>
+        </div>
+
+        <!-- Stat Card 3 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+              <i data-lucide="users" class="w-6 h-6 text-pink-600"></i>
+            </div>
+          </div>
+          <h3 class="text-gray-600 text-sm font-medium mb-1">Utilisations</h3>
+          <p class="text-3xl font-bold text-gray-800" id="totalUses">-</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Activité récente</h2>
+        <div id="recentActivity" class="space-y-3">
+          <p class="text-gray-500 text-center py-8">Chargement des données...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shares Tab -->
+    <div id="content-shares" class="tab-content hidden">
+      <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-gray-800">Gestion des partages</h2>
+          <button
+            onclick="loadShares()"
+            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all flex items-center gap-2"
+          >
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            Actualiser
+          </button>
+        </div>
+
+        <!-- Barre de recherche et filtres -->
+        <div class="mb-6 space-y-4">
+          <!-- Recherche -->
+          <div class="relative">
+            <i data-lucide="search" class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input
+              type="text"
+              id="searchShares"
+              placeholder="Rechercher par nom de leçon ou code..."
+              onkeyup="filterShares()"
+              class="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+            />
+          </div>
+
+          <!-- Filtres et tri -->
+          <div class="flex gap-4 flex-wrap">
+            <!-- Filtres de statut -->
+            <div class="flex gap-2">
+              <button
+                onclick="setStatusFilter('all')"
+                id="filter-all"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm filter-btn"
+              >
+                Tous
+              </button>
+              <button
+                onclick="setStatusFilter('active')"
+                id="filter-active"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm filter-btn"
+              >
+                Actifs
+              </button>
+              <button
+                onclick="setStatusFilter('expired')"
+                id="filter-expired"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm filter-btn"
+              >
+                Expirés
+              </button>
+            </div>
+
+            <!-- Tri -->
+            <select
+              id="sortShares"
+              onchange="filterShares()"
+              class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+            >
+              <option value="date-desc">Plus récent</option>
+              <option value="date-asc">Plus ancien</option>
+              <option value="name-asc">Nom A-Z</option>
+              <option value="name-desc">Nom Z-A</option>
+              <option value="downloads-desc">Plus téléchargé</option>
+              <option value="downloads-asc">Moins téléchargé</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="sharesList" class="space-y-3">
+          <p class="text-gray-500 text-center py-8">Chargement des partages...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="content-analytics" class="tab-content hidden">
+      <!-- Sélecteur d'utilisateur -->
+      <div class="mb-6 animate-fade-in">
+        <!-- Vue rétractée (icône seule) -->
+        <div id="userSelectorCollapsed" class="hidden inline-block">
+          <div class="bg-purple-600 rounded-xl shadow-lg p-3 cursor-pointer hover:shadow-xl hover:scale-110 hover:bg-purple-700 transition-all duration-300" onclick="toggleUserSelector()" title="Ouvrir le sélecteur d'utilisateur">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <i data-lucide="user-search" class="w-6 h-6 text-white"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vue déployée (complète) -->
+        <div id="userSelectorExpanded" class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
+          <div class="p-4">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <i data-lucide="user-search" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                  <h3 class="text-white font-bold text-lg">Vue par Utilisateur</h3>
+                  <p class="text-white/80 text-sm" id="selectedUserInfo">Tous les utilisateurs</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <select id="userSelector" onchange="changeSelectedUser()" class="px-4 py-2 rounded-lg border-2 border-white/30 bg-white/10 text-white backdrop-blur-sm focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all">
+                  <option value="all">Tous les utilisateurs</option>
+                </select>
+                <button onclick="resetUserSelection()" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all flex items-center gap-2 backdrop-blur-sm">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  Réinitialiser
+                </button>
+                <button onclick="toggleUserSelector()" class="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all" title="Réduire">
+                  <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs Section - Ligne 1 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 animate-fade-in">
+        <!-- Utilisateurs Uniques -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Utilisateurs Uniques</h3>
+            <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
+          </div>
+          <p id="kpi-users" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Visiteurs distincts</p>
+        </div>
+
+        <!-- Sessions Totales -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Sessions</h3>
+            <i data-lucide="activity" class="w-4 h-4 text-pink-600"></i>
+          </div>
+          <p id="kpi-sessions" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Visites sur le site</p>
+        </div>
+
+        <!-- Leçons Créées -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Leçons Créées</h3>
+            <i data-lucide="book-plus" class="w-4 h-4 text-blue-600"></i>
+          </div>
+          <p id="kpi-lessons" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Nouvelles leçons</p>
+        </div>
+
+        <!-- Temps Moyen -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Temps Moyen de Jeu</h3>
+            <i data-lucide="clock" class="w-4 h-4 text-green-600"></i>
+          </div>
+          <p id="kpi-avgtime" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Par partie</p>
+        </div>
+      </div>
+
+      <!-- KPIs Section - Ligne 2 (Nouvelles métriques) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-fade-in">
+        <!-- Parties Jouées -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Parties Jouées</h3>
+            <i data-lucide="gamepad-2" class="w-4 h-4 text-orange-600"></i>
+          </div>
+          <p id="kpi-games" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Sessions de jeu</p>
+        </div>
+
+        <!-- Leçons Importées -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Leçons Importées</h3>
+            <i data-lucide="download" class="w-4 h-4 text-cyan-600"></i>
+          </div>
+          <p id="kpi-imported" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Via code/URL</p>
+        </div>
+
+        <!-- Magic Lesson -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Magic Lesson</h3>
+            <i data-lucide="sparkles" class="w-4 h-4 text-yellow-600"></i>
+          </div>
+          <p id="kpi-magic" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Générations IA</p>
+        </div>
+
+        <!-- Taux d'Engagement -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Taux d'Engagement</h3>
+            <i data-lucide="zap" class="w-4 h-4 text-red-600"></i>
+          </div>
+          <p id="kpi-engagement" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Actions / Session</p>
+        </div>
+      </div>
+
+      <!-- Filtres de Période -->
+      <div class="bg-white rounded-xl shadow-lg p-4 mb-6 animate-fade-in">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-sm font-medium text-gray-700">Période :</span>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="changePeriod('24h')" id="period-24h" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm period-btn">
+                24h
+              </button>
+              <button onclick="changePeriod('48h')" id="period-48h" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm period-btn">
+                48h
+              </button>
+              <button onclick="changePeriod('7d')" id="period-7d" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm period-btn">
+                7 jours
+              </button>
+              <button onclick="changePeriod('30d')" id="period-30d" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm period-btn">
+                30 jours
+              </button>
+              <button onclick="changePeriod('90d')" id="period-90d" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm period-btn">
+                90 jours
+              </button>
+              <button onclick="changePeriod('all')" id="period-all" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm period-btn">
+                Tout
+              </button>
+            </div>
+          </div>
+          <button onclick="refreshAnalytics()" id="refreshBtn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all text-sm flex items-center gap-2 font-medium">
+            <svg id="refreshIcon" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2v6h-6"></path>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+              <path d="M3 22v-6h6"></path>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+            </svg>
+            Actualiser
+          </button>
+        </div>
+      </div>
+
+      <!-- Graphiques - Grille 2 colonnes -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Timeline Chart -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Évolution des Sessions</h3>
+          <canvas id="timelineChart" height="120"></canvas>
+        </div>
+
+        <!-- Game Modes Chart -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Popularité des Modes de Jeu</h3>
+          <canvas id="gameModesChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Graphiques - Grille 2 colonnes (ligne 2) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Events Distribution Chart -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Types d'Événements</h3>
+          <canvas id="eventsChart" height="120"></canvas>
+        </div>
+
+        <!-- Hourly Activity Chart -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Activité par Heure</h3>
+          <canvas id="hourlyChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Tableau des événements récents -->
+      <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-gray-800">Événements Récents</h3>
+          <select id="eventTypeFilter" onchange="loadRecentEvents()" class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+            <option value="all">Tous les événements</option>
+            <option value="session_start">Sessions</option>
+            <option value="lesson_created">Leçons créées</option>
+            <option value="lesson_imported">Leçons importées</option>
+            <option value="game_started">Jeux démarrés</option>
+            <option value="game_completed">Jeux terminés</option>
+            <option value="magic_lesson_used">Magic Lesson</option>
+          </select>
+        </div>
+        <div id="recentEventsList" class="space-y-2 max-h-96 overflow-y-auto">
+          <p class="text-gray-500 text-center py-4">Chargement...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="content-settings" class="tab-content hidden">
+      <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">Paramètres</h2>
+
+        <div class="space-y-6">
+          <div class="border-b border-gray-200 pb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">Sécurité</h3>
+            <button
+              onclick="changePassword()"
+              class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+            >
+              Changer le mot de passe
+            </button>
+          </div>
+
+          <div class="border-b border-gray-200 pb-6" id="cleanupSection">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">Base de données</h3>
+            <button
+              onclick="cleanupDatabase()"
+              class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all flex items-center gap-2"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              Nettoyer les partages expirés
+            </button>
+            <p class="text-sm text-gray-500 mt-2">Requiert le rôle admin ou supérieur</p>
+          </div>
+
+          <div class="border-b border-gray-200 pb-6" id="userManagementSection">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-800">Gestion des utilisateurs</h3>
+              <button
+                onclick="openCreateUserModal()"
+                id="createUserBtn"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all flex items-center gap-2"
+              >
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                Ajouter un utilisateur
+              </button>
+            </div>
+
+            <!-- Liste des utilisateurs -->
+            <div id="usersList" class="space-y-3">
+              <p class="text-gray-500 text-center py-4">Chargement des utilisateurs...</p>
+            </div>
+            <p class="text-sm text-gray-500 mt-4">Requiert le rôle super_admin</p>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">À propos</h3>
+            <p class="text-gray-600">Flashmap Admin v1.0.0</p>
+            <p class="text-gray-500 text-sm mt-1">Dernière connexion : <span id="lastLogin">-</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div> <!-- Fermeture du conteneur des onglets -->
+  </div>
+
+  <!-- Modale de visualisation de leçon -->
+  <div id="lessonViewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-fade-in">
+      <!-- Header de la modale -->
+      <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 id="modalLessonName" class="text-2xl font-bold text-gray-800"></h2>
+        <button onclick="closeLessonModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-all">
+          <i data-lucide="x" class="w-6 h-6 text-gray-600"></i>
+        </button>
+      </div>
+
+      <!-- Infos de la leçon -->
+      <div id="modalLessonInfo" class="px-6 py-4 bg-gray-50 border-b border-gray-200"></div>
+
+      <!-- Liste des cartes -->
+      <div class="flex-1 overflow-y-auto px-6 py-4">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Cartes de la leçon</h3>
+        <div id="modalCardsList" class="space-y-4"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+        <button onclick="closeLessonModal()" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-all">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale de changement de mot de passe -->
+  <div id="changePasswordModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full animate-fade-in">
+      <!-- Header de la modale -->
+      <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">Changer le mot de passe</h2>
+        <button onclick="closePasswordModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-all">
+          <i data-lucide="x" class="w-6 h-6 text-gray-600"></i>
+        </button>
+      </div>
+
+      <!-- Formulaire -->
+      <form id="changePasswordForm" class="px-6 py-4">
+        <div class="space-y-4">
+          <!-- Message d'erreur/succès -->
+          <div id="passwordChangeMessage" class="hidden p-3 rounded-lg text-sm"></div>
+
+          <!-- Ancien mot de passe -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Mot de passe actuel
+            </label>
+            <input
+              type="password"
+              id="currentPasswordInput"
+              placeholder="Entrez votre mot de passe actuel"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+            />
+          </div>
+
+          <!-- Nouveau mot de passe -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Nouveau mot de passe
+            </label>
+            <input
+              type="password"
+              id="newPasswordInput"
+              placeholder="Entrez le nouveau mot de passe"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+              minlength="6"
+            />
+            <p class="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+          </div>
+
+          <!-- Confirmation du nouveau mot de passe -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Confirmer le nouveau mot de passe
+            </label>
+            <input
+              type="password"
+              id="confirmPasswordInput"
+              placeholder="Confirmez le nouveau mot de passe"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+              minlength="6"
+            />
+          </div>
+        </div>
+      </form>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          onclick="closePasswordModal()"
+          class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+        >
+          Annuler
+        </button>
+        <button
+          onclick="submitPasswordChange()"
+          id="submitPasswordBtn"
+          class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all flex items-center gap-2"
+        >
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          Changer le mot de passe
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale de création d'utilisateur -->
+  <div id="createUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full animate-fade-in">
+      <!-- Header de la modale -->
+      <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-800">Nouvel utilisateur admin</h2>
+        <button onclick="closeCreateUserModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-all">
+          <i data-lucide="x" class="w-6 h-6 text-gray-600"></i>
+        </button>
+      </div>
+
+      <!-- Formulaire -->
+      <form id="createUserForm" class="px-6 py-4">
+        <div class="space-y-4">
+          <!-- Message d'erreur/succès -->
+          <div id="createUserMessage" class="hidden p-3 rounded-lg text-sm"></div>
+
+          <!-- Nom d'utilisateur -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Nom d'utilisateur
+            </label>
+            <input
+              type="text"
+              id="newUsernameInput"
+              placeholder="Entrez le nom d'utilisateur"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+              pattern="[a-zA-Z0-9_-]{3,50}"
+            />
+            <p class="text-xs text-gray-500 mt-1">3-50 caractères alphanumériques, tirets et underscores</p>
+          </div>
+
+          <!-- Mot de passe -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Mot de passe
+            </label>
+            <input
+              type="password"
+              id="newUserPasswordInput"
+              placeholder="Entrez le mot de passe"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+              minlength="6"
+            />
+            <p class="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+          </div>
+
+          <!-- Rôle -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Rôle et permissions
+            </label>
+            <select
+              id="newUserRoleSelect"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+              required
+            >
+              <option value="admin">Admin - Accès complet</option>
+              <option value="super_admin">Super Admin - Tous les privilèges</option>
+              <option value="viewer">Viewer - Lecture seule</option>
+            </select>
+            <div class="mt-2 text-xs text-gray-600 space-y-1">
+              <p><strong>Admin :</strong> Peut gérer les partages et voir les statistiques</p>
+              <p><strong>Super Admin :</strong> Peut tout faire, y compris gérer les utilisateurs</p>
+              <p><strong>Viewer :</strong> Peut seulement consulter les données (future fonctionnalité)</p>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          onclick="closeCreateUserModal()"
+          class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+        >
+          Annuler
+        </button>
+        <button
+          onclick="submitCreateUser()"
+          id="submitCreateUserBtn"
+          class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all flex items-center gap-2"
+        >
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          Créer l'utilisateur
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_URL = 'https://api.flashmap.app/api';
+
+    // État de l'application
+    let currentTab = 'dashboard';
+    let allShares = [];
+    let currentStatusFilter = 'all';
+    let userRole = 'viewer'; // Par défaut viewer
+
+    // Helper pour vérifier les permissions
+    function hasPermission(requiredRole) {
+      const hierarchy = {
+        'viewer': 0,
+        'admin': 1,
+        'super_admin': 2
+      };
+      const userLevel = hierarchy[userRole] || 0;
+      const requiredLevel = hierarchy[requiredRole] || 0;
+      return userLevel >= requiredLevel;
+    }
+
+    // Vérifier si déjà connecté
+    window.onload = () => {
+      if (sessionStorage.getItem('adminAuth') === 'true') {
+        // Récupérer le rôle stocké
+        const storedRole = sessionStorage.getItem('adminRole');
+        if (storedRole) {
+          userRole = storedRole;
+        }
+        showDashboard();
+      }
+    };
+
+    // Gestion du login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      const errorMsg = document.getElementById('errorMessage');
+      const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+
+      // Désactiver le bouton pendant la vérification
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Connexion...';
+      errorMsg.classList.add('hidden');
+
+      try {
+        // Vérifier les credentials via l'API
+        const response = await fetch(`${API_URL}/admin/stats`, {
+          headers: {
+            'username': username,
+            'password': password
+          }
+        });
+
+        if (response.ok) {
+          // Credentials valides
+          sessionStorage.setItem('adminAuth', 'true');
+          sessionStorage.setItem('adminUsername', username);
+          sessionStorage.setItem('adminPassword', password); // Stocké pour les futures requêtes
+          sessionStorage.setItem('lastLogin', new Date().toISOString());
+          showDashboard();
+        } else {
+          // Credentials invalides
+          errorMsg.textContent = '❌ Nom d\'utilisateur ou mot de passe incorrect';
+          errorMsg.classList.remove('hidden');
+          document.getElementById('usernameInput').value = '';
+          document.getElementById('passwordInput').value = '';
+        }
+      } catch (error) {
+        console.error('Erreur de connexion:', error);
+        errorMsg.textContent = '❌ Erreur de connexion au serveur';
+        errorMsg.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Se connecter';
+      }
+    });
+
+    // Afficher le dashboard
+    function showDashboard() {
+      const username = sessionStorage.getItem('adminUsername');
+      document.getElementById('currentUser').textContent = username || 'Administrateur';
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('adminDashboard').classList.remove('hidden');
+      updateUIForRole(); // Mettre à jour l'UI selon le rôle
+      showTab('dashboard');
+      updateLastLogin();
+      loadDashboardData();
+      lucide.createIcons(); // Initialiser les icônes
+    }
+
+    // Mettre à jour l'UI en fonction du rôle
+    function updateUIForRole() {
+      // Cacher l'onglet Settings pour les non-super_admins
+      const settingsTab = document.getElementById('tab-settings');
+      if (settingsTab) {
+        if (!hasPermission('super_admin')) {
+          settingsTab.style.display = 'none';
+        } else {
+          settingsTab.style.display = 'flex';
+        }
+      }
+
+      // Afficher un badge de rôle dans le header
+      const roleLabels = {
+        'viewer': 'Viewer',
+        'admin': 'Admin',
+        'super_admin': 'Super Admin'
+      };
+      const roleColors = {
+        'viewer': 'bg-gray-100 text-gray-700',
+        'admin': 'bg-blue-100 text-blue-700',
+        'super_admin': 'bg-purple-100 text-purple-700'
+      };
+
+      // Ajouter ou mettre à jour le badge de rôle
+      const userElement = document.getElementById('currentUser');
+      let roleBadge = document.getElementById('userRoleBadge');
+
+      if (userElement) {
+        if (!roleBadge) {
+          roleBadge = document.createElement('span');
+          roleBadge.id = 'userRoleBadge';
+          userElement.parentElement.appendChild(roleBadge);
+        }
+
+        roleBadge.className = `ml-2 px-2 py-1 text-xs rounded ${roleColors[userRole] || 'bg-gray-100 text-gray-700'}`;
+        roleBadge.textContent = roleLabels[userRole] || userRole;
+      }
+    }
+
+    // Déconnexion
+    function logout() {
+      sessionStorage.removeItem('adminAuth');
+      sessionStorage.removeItem('adminUsername');
+      sessionStorage.removeItem('adminPassword');
+      sessionStorage.removeItem('adminRole');
+      location.reload();
+    }
+
+    // Gestion des onglets
+    function showTab(tabName) {
+      // Vérifier les permissions pour l'onglet Settings
+      if (tabName === 'settings' && !hasPermission('super_admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être super_admin pour accéder aux paramètres.');
+        return;
+      }
+
+      currentTab = tabName;
+
+      // Masquer tous les contenus
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+      });
+
+      // Réinitialiser tous les boutons
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('border-purple-600', 'text-purple-600', 'bg-purple-50');
+        btn.classList.add('border-transparent', 'text-gray-600');
+      });
+
+      // Afficher le contenu sélectionné
+      document.getElementById(`content-${tabName}`).classList.remove('hidden');
+
+      // Activer le bouton sélectionné
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      activeBtn.classList.remove('border-transparent', 'text-gray-600');
+      activeBtn.classList.add('border-purple-600', 'text-purple-600', 'bg-purple-50');
+
+      // Charger les données selon l'onglet
+      if (tabName === 'dashboard') {
+        loadDashboardData();
+      } else if (tabName === 'shares') {
+        loadShares();
+      } else if (tabName === 'analytics') {
+        loadAnalytics();
+      } else if (tabName === 'settings') {
+        loadUsers();
+      }
+    }
+
+    // Helper pour les requêtes API avec auth
+    async function apiRequest(endpoint, options = {}) {
+      const username = sessionStorage.getItem('adminUsername');
+      const password = sessionStorage.getItem('adminPassword');
+
+      if (!username || !password) {
+        throw new Error('Non authentifié');
+      }
+
+      const response = await fetch(`${API_URL}/admin${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'username': username,
+          'password': password,
+          ...options.headers
+        }
+      });
+
+      // Récupérer le rôle depuis les headers
+      const role = response.headers.get('X-Admin-Role');
+      if (role && role !== userRole) {
+        userRole = role;
+        sessionStorage.setItem('adminRole', role);
+        updateUIForRole(); // Mettre à jour l'UI si le rôle change
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Session expirée ou credentials invalides
+          sessionStorage.clear();
+          location.reload();
+        } else if (response.status === 403) {
+          // Accès refusé (permissions insuffisantes)
+          const data = await response.json();
+          alert(data.error + '\n' + data.details);
+          throw new Error('Accès refusé');
+        }
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    // Charger les données du dashboard
+    async function loadDashboardData() {
+      try {
+        // Charger les statistiques
+        const statsData = await apiRequest('/stats');
+
+        document.getElementById('totalShares').textContent = statsData.stats.totalShares;
+        document.getElementById('activeShares').textContent = statsData.stats.activeShares;
+        document.getElementById('totalUses').textContent = statsData.stats.totalUses;
+
+        // Charger l'activité récente
+        const activityData = await apiRequest('/activity');
+
+        if (activityData.activities.length === 0) {
+          document.getElementById('recentActivity').innerHTML = `
+            <p class="text-gray-500 text-center py-4">Aucune activité récente</p>
+          `;
+        } else {
+          const activitiesHTML = activityData.activities.map(activity => {
+            const date = new Date(activity.createdAt);
+            return `
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <i data-lucide="book-open" class="w-5 h-5 text-purple-600"></i>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-800">${activity.lessonName}</p>
+                    <p class="text-sm text-gray-500">Code: ${activity.code} • ${activity.downloadCount} téléchargement(s)</p>
+                  </div>
+                </div>
+                <span class="text-sm text-gray-500">${date.toLocaleDateString('fr-FR')}</span>
+              </div>
+            `;
+          }).join('');
+
+          document.getElementById('recentActivity').innerHTML = activitiesHTML;
+          lucide.createIcons(); // Réinitialiser les icônes APRÈS l'insertion dans le DOM
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+        document.getElementById('totalShares').textContent = 'Err';
+        document.getElementById('activeShares').textContent = 'Err';
+        document.getElementById('totalUses').textContent = 'Err';
+        document.getElementById('recentActivity').innerHTML = `
+          <p class="text-red-500 text-center py-4">Erreur lors du chargement des données</p>
+        `;
+      }
+    }
+
+    // Définir le filtre de statut
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+
+      // Mettre à jour les boutons de filtre
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-purple-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+      });
+
+      const activeBtn = document.getElementById(`filter-${status}`);
+      activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+      activeBtn.classList.add('bg-purple-600', 'text-white');
+
+      filterShares();
+    }
+
+    // Filtrer et trier les partages
+    function filterShares() {
+      const searchTerm = document.getElementById('searchShares').value.toLowerCase();
+      const sortBy = document.getElementById('sortShares').value;
+
+      // Filtrer par recherche
+      let filtered = allShares.filter(share => {
+        const matchesSearch = share.lessonName.toLowerCase().includes(searchTerm) ||
+                             share.code.toLowerCase().includes(searchTerm);
+
+        // Filtrer par statut
+        if (currentStatusFilter === 'active') return matchesSearch && share.isActive;
+        if (currentStatusFilter === 'expired') return matchesSearch && !share.isActive;
+        return matchesSearch;
+      });
+
+      // Trier
+      filtered.sort((a, b) => {
+        switch(sortBy) {
+          case 'date-desc':
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          case 'date-asc':
+            return new Date(a.createdAt) - new Date(b.createdAt);
+          case 'name-asc':
+            return a.lessonName.localeCompare(b.lessonName);
+          case 'name-desc':
+            return b.lessonName.localeCompare(a.lessonName);
+          case 'downloads-desc':
+            return b.downloadCount - a.downloadCount;
+          case 'downloads-asc':
+            return a.downloadCount - b.downloadCount;
+          default:
+            return 0;
+        }
+      });
+
+      displayShares(filtered);
+    }
+
+    // Afficher les partages
+    function displayShares(shares) {
+      const sharesList = document.getElementById('sharesList');
+
+      if (shares.length === 0) {
+        sharesList.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun partage trouvé</p>';
+        return;
+      }
+
+      const sharesHTML = shares.map(share => {
+          const createdDate = new Date(share.createdAt);
+          const expiresDate = share.expiresAt ? new Date(share.expiresAt) : null;
+          const statusClass = share.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+          const statusText = share.isActive ? '✓ Actif' : '✗ Expiré';
+
+          return `
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+              <div class="flex-1 cursor-pointer" onclick="viewLesson('${share.code}')">
+                <div class="flex items-center gap-3 mb-2">
+                  <span class="font-mono font-bold text-purple-600 text-lg">${share.code}</span>
+                  <span class="px-3 py-1 ${statusClass} rounded-full text-sm font-medium">${statusText}</span>
+                </div>
+                <p class="font-medium text-gray-800 mb-1">${share.lessonName}</p>
+                <div class="text-sm text-gray-600 space-y-1">
+                  <p class="flex items-center gap-2"><i data-lucide="credit-card" class="w-4 h-4"></i>${share.cardCount} carte(s) • <i data-lucide="download" class="w-4 h-4"></i>${share.downloadCount} téléchargement(s)</p>
+                  <p class="flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4"></i>Créé: ${createdDate.toLocaleDateString('fr-FR')} à ${createdDate.toLocaleTimeString('fr-FR')}</p>
+                  ${expiresDate ? `<p class="flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i>Expire: ${expiresDate.toLocaleDateString('fr-FR')} à ${expiresDate.toLocaleTimeString('fr-FR')}</p>` : '<p class="flex items-center gap-2"><i data-lucide="infinity" class="w-4 h-4"></i>Expire: Jamais</p>'}
+                </div>
+              </div>
+              ${hasPermission('admin') ? `
+                <button
+                  onclick="deleteShare('${share.code}')"
+                  class="ml-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all flex items-center gap-2"
+                >
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  Supprimer
+                </button>
+              ` : `
+                <div class="ml-4 px-4 py-2 bg-gray-200 text-gray-500 rounded-lg flex items-center gap-2 cursor-not-allowed" title="Accès refusé : admin requis">
+                  <i data-lucide="lock" class="w-4 h-4"></i>
+                  Lecture seule
+                </div>
+              `}
+            </div>
+          `;
+        }).join('');
+
+      sharesList.innerHTML = sharesHTML;
+      lucide.createIcons(); // Réinitialiser les icônes après le rendu
+    }
+
+    // Charger les partages depuis l'API
+    async function loadShares() {
+      const sharesList = document.getElementById('sharesList');
+      sharesList.innerHTML = '<p class="text-gray-500 text-center py-4">Chargement...</p>';
+
+      try {
+        const data = await apiRequest('/shares');
+        allShares = data.shares;
+
+        if (allShares.length === 0) {
+          sharesList.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun partage trouvé</p>';
+          return;
+        }
+
+        filterShares();
+        lucide.createIcons(); // Initialiser les icônes de recherche
+      } catch (error) {
+        console.error('Erreur lors du chargement des partages:', error);
+        sharesList.innerHTML = '<p class="text-red-500 text-center py-4">Erreur lors du chargement des partages</p>';
+      }
+    }
+
+    // Supprimer un partage
+    async function deleteShare(code) {
+      if (!hasPermission('admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être admin ou supérieur pour supprimer un partage.');
+        return;
+      }
+
+      if (!confirm(`Voulez-vous vraiment supprimer le partage ${code} ?`)) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/shares/${code}`, { method: 'DELETE' });
+        alert(`Partage ${code} supprimé avec succès`);
+        loadShares(); // Recharger la liste
+        loadDashboardData(); // Recharger les stats
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+        alert('Erreur lors de la suppression du partage');
+      }
+    }
+
+    // Nettoyer la base de données
+    async function cleanupDatabase() {
+      if (!hasPermission('admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être admin ou supérieur pour nettoyer la base de données.');
+        return;
+      }
+
+      if (!confirm('Voulez-vous vraiment nettoyer les partages expirés ?')) {
+        return;
+      }
+
+      try {
+        const data = await apiRequest('/cleanup', { method: 'POST' });
+        alert(data.message);
+        loadShares(); // Recharger la liste
+        loadDashboardData(); // Recharger les stats
+      } catch (error) {
+        console.error('Erreur lors du nettoyage:', error);
+        alert('Erreur lors du nettoyage de la base de données');
+      }
+    }
+
+    // Changer le mot de passe
+    function changePassword() {
+      alert('Fonctionnalité à venir');
+    }
+
+    // Mettre à jour l'heure de dernière connexion
+    function updateLastLogin() {
+      const lastLogin = sessionStorage.getItem('lastLogin');
+      if (lastLogin) {
+        const date = new Date(lastLogin);
+        document.getElementById('lastLogin').textContent = date.toLocaleString('fr-FR');
+      }
+    }
+
+    // Voir les détails d'une leçon
+    async function viewLesson(code) {
+      const share = allShares.find(s => s.code === code);
+      if (!share) return;
+
+      // Récupérer les données complètes de la leçon depuis l'API
+      try {
+        const response = await fetch(`${API_URL}/retrieve/${code}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          alert('Erreur lors du chargement de la leçon');
+          return;
+        }
+
+        const lesson = typeof data.lesson === 'string' ? JSON.parse(data.lesson) : data.lesson;
+
+        // Remplir la modale
+        document.getElementById('modalLessonName').textContent = lesson.name;
+
+        // Infos de la leçon
+        const createdDate = new Date(share.createdAt);
+        const expiresDate = share.expiresAt ? new Date(share.expiresAt) : null;
+        document.getElementById('modalLessonInfo').innerHTML = `
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p class="text-gray-600">Code</p>
+              <p class="font-bold text-purple-600">${share.code}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Cartes</p>
+              <p class="font-bold">${lesson.cards?.length || 0}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Téléchargements</p>
+              <p class="font-bold">${share.downloadCount}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Statut</p>
+              <p class="font-bold ${share.isActive ? 'text-green-600' : 'text-red-600'}">${share.isActive ? 'Actif' : 'Expiré'}</p>
+            </div>
+          </div>
+        `;
+
+        // Afficher les cartes
+        const cardsHTML = lesson.cards.map((card, index) => {
+          const front = card.front || card.question || '';
+          const back = card.back || card.answer || '';
+          const frontImage = card.frontImage || card.questionImage || null;
+          const backImage = card.backImage || card.answerImage || null;
+
+          return `
+            <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="px-3 py-1 bg-purple-600 text-white rounded-full text-sm font-bold">Carte ${index + 1}</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Question/Front -->
+                <div>
+                  <p class="text-sm font-semibold text-gray-600 mb-2">Question</p>
+                  ${frontImage ? `<img src="${frontImage}" class="w-full max-h-48 object-contain rounded-lg mb-2 bg-white border border-gray-300" alt="Image question">` : ''}
+                  <p class="text-gray-800">${front}</p>
+                </div>
+                <!-- Réponse/Back -->
+                <div>
+                  <p class="text-sm font-semibold text-gray-600 mb-2">Réponse</p>
+                  ${backImage ? `<img src="${backImage}" class="w-full max-h-48 object-contain rounded-lg mb-2 bg-white border border-gray-300" alt="Image réponse">` : ''}
+                  <p class="text-gray-800">${back}</p>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('modalCardsList').innerHTML = cardsHTML;
+
+        // Afficher la modale
+        document.getElementById('lessonViewModal').classList.remove('hidden');
+        lucide.createIcons();
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur lors du chargement de la leçon');
+      }
+    }
+
+    // Fermer la modale
+    function closeLessonModal() {
+      document.getElementById('lessonViewModal').classList.add('hidden');
+    }
+
+    // ======================================
+    // Gestion du changement de mot de passe
+    // ======================================
+
+    // Ouvrir le modal de changement de mot de passe
+    function changePassword() {
+      // Réinitialiser le formulaire
+      document.getElementById('changePasswordForm').reset();
+      document.getElementById('passwordChangeMessage').classList.add('hidden');
+
+      // Afficher le modal
+      document.getElementById('changePasswordModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // Fermer le modal de changement de mot de passe
+    function closePasswordModal() {
+      document.getElementById('changePasswordModal').classList.add('hidden');
+      document.getElementById('changePasswordForm').reset();
+      document.getElementById('passwordChangeMessage').classList.add('hidden');
+    }
+
+    // Soumettre le changement de mot de passe
+    async function submitPasswordChange() {
+      const currentPassword = document.getElementById('currentPasswordInput').value;
+      const newPassword = document.getElementById('newPasswordInput').value;
+      const confirmPassword = document.getElementById('confirmPasswordInput').value;
+      const messageDiv = document.getElementById('passwordChangeMessage');
+      const submitBtn = document.getElementById('submitPasswordBtn');
+
+      // Validation côté client
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        showPasswordMessage('Veuillez remplir tous les champs', 'error');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        showPasswordMessage('Le nouveau mot de passe doit contenir au moins 6 caractères', 'error');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showPasswordMessage('Les nouveaux mots de passe ne correspondent pas', 'error');
+        return;
+      }
+
+      // Désactiver le bouton pendant la requête
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Changement en cours...';
+      lucide.createIcons();
+
+      try {
+        const response = await apiRequest('/change-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            currentPassword,
+            newPassword
+          })
+        });
+
+        if (response.success) {
+          // Succès
+          showPasswordMessage('Mot de passe modifié avec succès ! Déconnexion dans 2 secondes...', 'success');
+
+          // Mettre à jour le mot de passe dans sessionStorage
+          sessionStorage.setItem('adminPassword', newPassword);
+
+          // Fermer le modal après 2 secondes et afficher un message
+          setTimeout(() => {
+            closePasswordModal();
+            alert('Mot de passe modifié avec succès !');
+          }, 2000);
+        }
+
+      } catch (error) {
+        console.error('Erreur:', error);
+
+        // Gérer les différents types d'erreurs
+        if (error.message.includes('401')) {
+          showPasswordMessage('Mot de passe actuel incorrect', 'error');
+        } else if (error.message.includes('400')) {
+          showPasswordMessage('Le nouveau mot de passe doit contenir au moins 6 caractères', 'error');
+        } else {
+          showPasswordMessage('Erreur lors du changement de mot de passe', 'error');
+        }
+
+      } finally {
+        // Réactiver le bouton
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i> Changer le mot de passe';
+        lucide.createIcons();
+      }
+    }
+
+    // Afficher un message dans le modal de changement de mot de passe
+    function showPasswordMessage(message, type) {
+      const messageDiv = document.getElementById('passwordChangeMessage');
+      messageDiv.textContent = message;
+      messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+
+      if (type === 'error') {
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+      } else if (type === 'success') {
+        messageDiv.classList.add('bg-green-100', 'text-green-700');
+      }
+    }
+
+    // ======================================
+    // Gestion des utilisateurs
+    // ======================================
+
+    // Charger la liste des utilisateurs
+    async function loadUsers() {
+      try {
+        const data = await apiRequest('/users');
+        const currentUsername = sessionStorage.getItem('adminUsername');
+
+        if (data.users.length === 0) {
+          document.getElementById('usersList').innerHTML = `
+            <p class="text-gray-500 text-center py-4">Aucun utilisateur</p>
+          `;
+        } else {
+          const usersHTML = data.users.map(user => {
+            const isCurrentUser = user.username === currentUsername;
+            const roleColors = {
+              'admin': 'bg-blue-100 text-blue-700',
+              'super_admin': 'bg-purple-100 text-purple-700',
+              'viewer': 'bg-gray-100 text-gray-700'
+            };
+            const roleLabels = {
+              'admin': 'Admin',
+              'super_admin': 'Super Admin',
+              'viewer': 'Viewer'
+            };
+
+            const lastLogin = user.last_login
+              ? new Date(user.last_login).toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              : 'Jamais';
+
+            return `
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all ${isCurrentUser ? 'border-2 border-purple-300' : ''}">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <i data-lucide="user" class="w-5 h-5 text-purple-600"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <p class="font-medium text-gray-800">${user.username}</p>
+                      ${isCurrentUser ? '<span class="text-xs text-purple-600 font-semibold">(Vous)</span>' : ''}
+                    </div>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs px-2 py-1 rounded ${roleColors[user.role] || 'bg-gray-100 text-gray-700'}">
+                        ${roleLabels[user.role] || user.role}
+                      </span>
+                      <span class="text-xs text-gray-500">Dernière connexion: ${lastLogin}</span>
+                    </div>
+                  </div>
+                </div>
+                ${!isCurrentUser && hasPermission('super_admin') ? `
+                  <button
+                    onclick="deleteUser(${user.id}, '${user.username}')"
+                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                    title="Supprimer cet utilisateur"
+                  >
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                  </button>
+                ` : (!isCurrentUser ? `
+                  <div class="p-2 text-gray-400" title="Accès refusé : super_admin requis">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                  </div>
+                ` : '')}
+              </div>
+            `;
+          }).join('');
+
+          document.getElementById('usersList').innerHTML = usersHTML;
+          lucide.createIcons();
+        }
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        document.getElementById('usersList').innerHTML = `
+          <p class="text-red-500 text-center py-4">Erreur lors du chargement des utilisateurs</p>
+        `;
+      }
+    }
+
+    // Ouvrir le modal de création d'utilisateur
+    function openCreateUserModal() {
+      if (!hasPermission('super_admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être super_admin pour créer des utilisateurs.');
+        return;
+      }
+
+      document.getElementById('createUserForm').reset();
+      document.getElementById('createUserMessage').classList.add('hidden');
+      document.getElementById('createUserModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // Fermer le modal de création d'utilisateur
+    function closeCreateUserModal() {
+      document.getElementById('createUserModal').classList.add('hidden');
+      document.getElementById('createUserForm').reset();
+      document.getElementById('createUserMessage').classList.add('hidden');
+    }
+
+    // Soumettre la création d'utilisateur
+    async function submitCreateUser() {
+      const username = document.getElementById('newUsernameInput').value.trim();
+      const password = document.getElementById('newUserPasswordInput').value;
+      const role = document.getElementById('newUserRoleSelect').value;
+      const submitBtn = document.getElementById('submitCreateUserBtn');
+
+      // Validation côté client
+      if (!username || !password || !role) {
+        showCreateUserMessage('Veuillez remplir tous les champs', 'error');
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_-]{3,50}$/.test(username)) {
+        showCreateUserMessage('Format de nom d\'utilisateur invalide', 'error');
+        return;
+      }
+
+      if (password.length < 6) {
+        showCreateUserMessage('Le mot de passe doit contenir au moins 6 caractères', 'error');
+        return;
+      }
+
+      // Désactiver le bouton
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Création...';
+      lucide.createIcons();
+
+      try {
+        const response = await apiRequest('/users', {
+          method: 'POST',
+          body: JSON.stringify({
+            username,
+            password,
+            role
+          })
+        });
+
+        if (response.success) {
+          showCreateUserMessage('Utilisateur créé avec succès !', 'success');
+
+          // Recharger la liste des utilisateurs
+          setTimeout(() => {
+            closeCreateUserModal();
+            loadUsers();
+          }, 1500);
+        }
+
+      } catch (error) {
+        console.error('Erreur:', error);
+
+        if (error.message.includes('409')) {
+          showCreateUserMessage('Ce nom d\'utilisateur est déjà utilisé', 'error');
+        } else if (error.message.includes('400')) {
+          showCreateUserMessage('Données invalides', 'error');
+        } else {
+          showCreateUserMessage('Erreur lors de la création de l\'utilisateur', 'error');
+        }
+
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="user-plus" class="w-4 h-4"></i> Créer l\'utilisateur';
+        lucide.createIcons();
+      }
+    }
+
+    // Afficher un message dans le modal de création d'utilisateur
+    function showCreateUserMessage(message, type) {
+      const messageDiv = document.getElementById('createUserMessage');
+      messageDiv.textContent = message;
+      messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+
+      if (type === 'error') {
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+      } else if (type === 'success') {
+        messageDiv.classList.add('bg-green-100', 'text-green-700');
+      }
+    }
+
+    // Supprimer un utilisateur
+    async function deleteUser(userId, username) {
+      if (!hasPermission('super_admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être super_admin pour supprimer des utilisateurs.');
+        return;
+      }
+
+      if (!confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur "${username}" ?\n\nCette action est irréversible.`)) {
+        return;
+      }
+
+      try {
+        const response = await apiRequest(`/users/${userId}`, {
+          method: 'DELETE'
+        });
+
+        if (response.success) {
+          alert(`Utilisateur "${username}" supprimé avec succès`);
+          loadUsers(); // Recharger la liste
+        }
+
+      } catch (error) {
+        console.error('Erreur:', error);
+
+        if (error.message.includes('400')) {
+          alert('Vous ne pouvez pas supprimer votre propre compte');
+        } else if (error.message.includes('404')) {
+          alert('Utilisateur introuvable');
+        } else {
+          alert('Erreur lors de la suppression de l\'utilisateur');
+        }
+      }
+    }
+
+    // ======================================
+    // Analytics
+    // ======================================
+
+    let currentPeriod = '7d';
+    let selectedUserId = 'all';
+    let allEventsCache = [];
+    let userSelectorExpanded = true;
+    let timelineChartInstance = null;
+    let gameModesChartInstance = null;
+    let eventsChartInstance = null;
+    let hourlyChartInstance = null;
+
+    // Rafraîchir les analytics
+    async function refreshAnalytics() {
+      const refreshBtn = document.getElementById('refreshBtn');
+      const icon = document.getElementById('refreshIcon');
+
+      console.log('[Analytics] Rafraîchissement démarré...');
+
+      // Désactiver le bouton et ajouter l'animation de rotation
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      icon.classList.add('animate-spin');
+
+      try {
+        console.log('[Analytics] Chargement des événements...');
+        // Recharger le cache
+        const eventsData = await apiRequest(`/analytics/events?period=${currentPeriod}&limit=5000`);
+        allEventsCache = eventsData.events || [];
+        console.log(`[Analytics] ${allEventsCache.length} événements chargés`);
+
+        // Recharger la liste des utilisateurs
+        console.log('[Analytics] Chargement des utilisateurs...');
+        await loadUsersList();
+
+        // Recharger toutes les données
+        console.log('[Analytics] Chargement des graphiques...');
+        await Promise.all([
+          loadAnalyticsKPIs(),
+          loadTimelineChart(),
+          loadGameModesChart(),
+          loadEventsChart(),
+          loadHourlyChart(),
+          loadRecentEvents()
+        ]);
+
+        lucide.createIcons();
+        console.log('[Analytics] Rafraîchissement terminé avec succès');
+
+        // Feedback visuel de succès (discret)
+        refreshBtn.classList.remove('bg-gray-100', 'text-gray-700');
+        refreshBtn.classList.add('bg-green-100', 'text-green-700');
+        setTimeout(() => {
+          refreshBtn.classList.remove('bg-green-100', 'text-green-700');
+          refreshBtn.classList.add('bg-gray-100', 'text-gray-700');
+        }, 1000);
+
+      } catch (error) {
+        console.error('[Analytics] Erreur lors du rafraîchissement:', error);
+
+        // Feedback visuel d'erreur (discret)
+        refreshBtn.classList.remove('bg-gray-100', 'text-gray-700');
+        refreshBtn.classList.add('bg-red-100', 'text-red-700');
+        setTimeout(() => {
+          refreshBtn.classList.remove('bg-red-100', 'text-red-700');
+          refreshBtn.classList.add('bg-gray-100', 'text-gray-700');
+        }, 1500);
+      } finally {
+        // Réactiver le bouton et arrêter l'animation
+        icon.classList.remove('animate-spin');
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    // Toggle la box de sélection d'utilisateur
+    function toggleUserSelector() {
+      userSelectorExpanded = !userSelectorExpanded;
+
+      const collapsed = document.getElementById('userSelectorCollapsed');
+      const expanded = document.getElementById('userSelectorExpanded');
+
+      if (userSelectorExpanded) {
+        // Afficher la vue déployée avec animation
+        collapsed.classList.add('hidden');
+        collapsed.classList.remove('animate-collapse');
+
+        expanded.classList.remove('hidden');
+        expanded.classList.add('animate-expand');
+
+        // Retirer la classe d'animation après l'animation
+        setTimeout(() => {
+          expanded.classList.remove('animate-expand');
+        }, 400);
+      } else {
+        // Afficher la vue rétractée avec animation
+        expanded.classList.add('hidden');
+        expanded.classList.remove('animate-expand');
+
+        collapsed.classList.remove('hidden');
+        collapsed.classList.add('animate-collapse');
+
+        // Retirer la classe d'animation après l'animation
+        setTimeout(() => {
+          collapsed.classList.remove('animate-collapse');
+        }, 300);
+      }
+
+      // Réinitialiser les icônes
+      setTimeout(() => {
+        lucide.createIcons();
+      }, 50);
+    }
+
+    // Charger les analytics
+    async function loadAnalytics() {
+      try {
+        // Charger tous les événements une seule fois
+        const eventsData = await apiRequest(`/analytics/events?period=${currentPeriod}&limit=5000`);
+        allEventsCache = eventsData.events || [];
+
+        // Charger la liste des utilisateurs
+        await loadUsersList();
+
+        // Charger toutes les données
+        await Promise.all([
+          loadAnalyticsKPIs(),
+          loadTimelineChart(),
+          loadGameModesChart(),
+          loadEventsChart(),
+          loadHourlyChart(),
+          loadRecentEvents()
+        ]);
+        lucide.createIcons();
+      } catch (error) {
+        console.error('Erreur lors du chargement des analytics:', error);
+      }
+    }
+
+    // Charger la liste des utilisateurs
+    async function loadUsersList() {
+      try {
+        // Extraire tous les user_id uniques
+        const userIds = [...new Set(allEventsCache.map(e => e.user_id))];
+
+        // Construire des stats par utilisateur pour l'affichage
+        const userStats = userIds.map(userId => {
+          const userEvents = allEventsCache.filter(e => e.user_id === userId);
+          const sessions = userEvents.filter(e => e.event_type === 'session_start').length;
+          const actions = userEvents.length;
+
+          return {
+            id: userId,
+            sessions,
+            actions,
+            lastActivity: new Date(Math.max(...userEvents.map(e => new Date(e.created_at))))
+          };
+        });
+
+        // Trier par dernière activité
+        userStats.sort((a, b) => b.lastActivity - a.lastActivity);
+
+        // Remplir le dropdown
+        const selector = document.getElementById('userSelector');
+        selector.innerHTML = '<option value="all">Tous les utilisateurs</option>';
+
+        userStats.forEach((user, index) => {
+          const shortId = user.id.substring(0, 8);
+          const lastActivityText = getTimeAgo(user.lastActivity);
+          const option = document.createElement('option');
+          option.value = user.id;
+          option.textContent = `Utilisateur #${index + 1} (${shortId}...) • ${user.sessions} sessions • ${user.actions} actions • ${lastActivityText}`;
+          selector.appendChild(option);
+        });
+
+      } catch (error) {
+        console.error('Erreur lors du chargement de la liste des utilisateurs:', error);
+      }
+    }
+
+    // Changer l'utilisateur sélectionné
+    function changeSelectedUser() {
+      const selector = document.getElementById('userSelector');
+      selectedUserId = selector.value;
+
+      // Mettre à jour l'info
+      const selectedOption = selector.options[selector.selectedIndex];
+      const infoText = selectedUserId === 'all'
+        ? 'Tous les utilisateurs'
+        : selectedOption.textContent;
+
+      document.getElementById('selectedUserInfo').textContent = infoText;
+
+      // Recharger toutes les données avec le filtre
+      loadAnalyticsKPIs();
+      loadTimelineChart();
+      loadGameModesChart();
+      loadEventsChart();
+      loadHourlyChart();
+      loadRecentEvents();
+    }
+
+    // Réinitialiser la sélection
+    function resetUserSelection() {
+      document.getElementById('userSelector').value = 'all';
+      changeSelectedUser();
+    }
+
+    // Filtrer les événements par utilisateur
+    function getFilteredEvents() {
+      if (selectedUserId === 'all') {
+        return allEventsCache;
+      }
+      return allEventsCache.filter(e => e.user_id === selectedUserId);
+    }
+
+    // Charger les KPIs
+    async function loadAnalyticsKPIs() {
+      try {
+        // Utiliser les événements filtrés du cache
+        const events = getFilteredEvents();
+
+        // Calculer les KPIs à partir des événements
+        const uniqueUsers = [...new Set(events.map(e => e.user_id))].length;
+        const sessions = events.filter(e => e.event_type === 'session_start').length;
+        const lessonsCreated = events.filter(e => e.event_type === 'lesson_created').length;
+
+        // Temps moyen de jeu
+        const completedGames = events.filter(e => e.event_type === 'game_completed');
+        let avgTime = 0;
+        if (completedGames.length > 0) {
+          const totalTime = completedGames.reduce((sum, e) => {
+            const data = typeof e.event_data === 'string' ? JSON.parse(e.event_data) : e.event_data;
+            return sum + (data.duration || 0);
+          }, 0);
+          avgTime = Math.round(totalTime / completedGames.length);
+        }
+
+        // Afficher les KPIs de base
+        document.getElementById('kpi-users').textContent = uniqueUsers.toLocaleString();
+        document.getElementById('kpi-sessions').textContent = sessions.toLocaleString();
+        document.getElementById('kpi-lessons').textContent = lessonsCreated.toLocaleString();
+
+        // Temps moyen
+        if (avgTime > 0) {
+          if (avgTime >= 60) {
+            const minutes = Math.floor(avgTime / 60);
+            const seconds = avgTime % 60;
+            document.getElementById('kpi-avgtime').textContent = `${minutes}m ${seconds}s`;
+          } else {
+            document.getElementById('kpi-avgtime').textContent = `${avgTime}s`;
+          }
+        } else {
+          document.getElementById('kpi-avgtime').textContent = '-';
+        }
+
+        // Nouveaux KPIs
+        const gamesPlayed = events.filter(e => e.event_type === 'game_started').length;
+        document.getElementById('kpi-games').textContent = gamesPlayed.toLocaleString();
+
+        const lessonsImported = events.filter(e => e.event_type === 'lesson_imported').length;
+        document.getElementById('kpi-imported').textContent = lessonsImported.toLocaleString();
+
+        const magicLessons = events.filter(e => e.event_type === 'magic_lesson_used').length;
+        document.getElementById('kpi-magic').textContent = magicLessons.toLocaleString();
+
+        // Taux d'engagement (actions par session)
+        const totalActions = events.filter(e =>
+          e.event_type !== 'session_start' && e.event_type !== 'game_completed'
+        ).length;
+        const engagementRate = sessions > 0
+          ? (totalActions / sessions).toFixed(1)
+          : '0.0';
+        document.getElementById('kpi-engagement').textContent = engagementRate;
+
+      } catch (error) {
+        console.error('Erreur KPIs:', error);
+        document.getElementById('kpi-users').textContent = 'Err';
+        document.getElementById('kpi-sessions').textContent = 'Err';
+        document.getElementById('kpi-lessons').textContent = 'Err';
+        document.getElementById('kpi-avgtime').textContent = 'Err';
+        document.getElementById('kpi-games').textContent = 'Err';
+        document.getElementById('kpi-imported').textContent = 'Err';
+        document.getElementById('kpi-magic').textContent = 'Err';
+        document.getElementById('kpi-engagement').textContent = 'Err';
+      }
+    }
+
+    // Charger le graphique timeline
+    async function loadTimelineChart() {
+      try {
+        const events = getFilteredEvents();
+
+        // Détruire l'ancien graphique s'il existe
+        if (timelineChartInstance) {
+          timelineChartInstance.destroy();
+        }
+
+        // Grouper les sessions par date
+        const sessionsByDate = {};
+        events.filter(e => e.event_type === 'session_start').forEach(event => {
+          const date = new Date(event.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+          sessionsByDate[date] = (sessionsByDate[date] || 0) + 1;
+        });
+
+        // Trier par date
+        const sortedDates = Object.keys(sessionsByDate).sort((a, b) => {
+          const [dayA, monthA] = a.split('/').map(Number);
+          const [dayB, monthB] = b.split('/').map(Number);
+          if (monthA !== monthB) return monthA - monthB;
+          return dayA - dayB;
+        });
+
+        const counts = sortedDates.map(date => sessionsByDate[date]);
+
+        if (sortedDates.length === 0) {
+          document.getElementById('timelineChart').parentElement.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune donnée disponible</p>';
+          return;
+        }
+
+        const ctx = document.getElementById('timelineChart').getContext('2d');
+
+        timelineChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: sortedDates,
+            datasets: [{
+              label: 'Sessions',
+              data: counts,
+              borderColor: '#9333ea',
+              backgroundColor: 'rgba(147, 51, 234, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                titleColor: '#fff',
+                bodyColor: '#fff'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Erreur timeline chart:', error);
+      }
+    }
+
+    // Charger le graphique modes de jeu
+    async function loadGameModesChart() {
+      try {
+        const events = getFilteredEvents();
+
+        // Détruire l'ancien graphique s'il existe
+        if (gameModesChartInstance) {
+          gameModesChartInstance.destroy();
+        }
+
+        // Grouper par mode de jeu
+        const gameStats = {};
+        events.filter(e => e.event_type === 'game_started' || e.event_type === 'game_completed').forEach(event => {
+          const eventData = typeof event.event_data === 'string' ? JSON.parse(event.event_data) : event.event_data;
+          const mode = eventData.mode;
+
+          if (!mode) return;
+
+          if (!gameStats[mode]) {
+            gameStats[mode] = {
+              gamesPlayed: 0,
+              totalDuration: 0,
+              totalScore: 0,
+              completedGames: 0
+            };
+          }
+
+          if (event.event_type === 'game_started') {
+            gameStats[mode].gamesPlayed++;
+          } else if (event.event_type === 'game_completed') {
+            gameStats[mode].completedGames++;
+            gameStats[mode].totalDuration += (eventData.duration || 0);
+            gameStats[mode].totalScore += (eventData.score || 0);
+          }
+        });
+
+        const modes = Object.keys(gameStats);
+
+        if (modes.length === 0) {
+          document.getElementById('gameModesChart').parentElement.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune donnée disponible</p>';
+          return;
+        }
+
+        const ctx = document.getElementById('gameModesChart').getContext('2d');
+
+        // Mapper les noms de modes en français
+        const modeLabels = {
+          'flashcards': 'Flashcards',
+          'mcq': 'Quiz (QCM)',
+          'type': 'Écriture',
+          'match': 'Match'
+        };
+
+        const colors = {
+          'flashcards': '#9333ea',
+          'mcq': '#ec4899',
+          'type': '#3b82f6',
+          'match': '#10b981'
+        };
+
+        gameModesChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: modes.map(mode => modeLabels[mode] || mode),
+            datasets: [{
+              label: 'Parties jouées',
+              data: modes.map(mode => gameStats[mode].gamesPlayed),
+              backgroundColor: modes.map(mode => colors[mode] || '#6b7280')
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                callbacks: {
+                  afterLabel: function(context) {
+                    const index = context.dataIndex;
+                    const mode = modes[index];
+                    const stats = gameStats[mode];
+                    const avgDuration = stats.completedGames > 0
+                      ? Math.round(stats.totalDuration / stats.completedGames)
+                      : 0;
+                    const avgScore = stats.completedGames > 0
+                      ? (stats.totalScore / stats.completedGames).toFixed(1)
+                      : 0;
+
+                    return [
+                      avgDuration > 0 ? `Durée moy.: ${avgDuration}s` : '',
+                      avgScore > 0 ? `Score moy.: ${avgScore}` : ''
+                    ].filter(Boolean);
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Erreur game modes chart:', error);
+      }
+    }
+
+    // Charger le graphique de distribution des événements
+    async function loadEventsChart() {
+      try {
+        const events = getFilteredEvents();
+
+        if (eventsChartInstance) {
+          eventsChartInstance.destroy();
+        }
+
+        // Compter les événements par type
+        const eventCounts = {};
+        events.forEach(event => {
+          eventCounts[event.event_type] = (eventCounts[event.event_type] || 0) + 1;
+        });
+
+        // Mapper les noms en français
+        const eventLabels = {
+          'session_start': 'Sessions',
+          'lesson_created': 'Leçons créées',
+          'lesson_edited': 'Leçons modifiées',
+          'lesson_deleted': 'Leçons supprimées',
+          'lesson_imported': 'Leçons importées',
+          'game_started': 'Jeux démarrés',
+          'game_completed': 'Jeux terminés',
+          'magic_lesson_used': 'Magic Lesson'
+        };
+
+        const colors = [
+          '#9333ea', // purple
+          '#ec4899', // pink
+          '#3b82f6', // blue
+          '#10b981', // green
+          '#f59e0b', // amber
+          '#ef4444', // red
+          '#8b5cf6', // violet
+          '#eab308'  // yellow
+        ];
+
+        const labels = Object.keys(eventCounts).map(key => eventLabels[key] || key);
+        const counts = Object.values(eventCounts);
+
+        if (counts.length === 0) {
+          document.getElementById('eventsChart').parentElement.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune donnée disponible</p>';
+          return;
+        }
+
+        const ctx = document.getElementById('eventsChart').getContext('2d');
+
+        eventsChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: counts,
+              backgroundColor: colors.slice(0, counts.length)
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  boxWidth: 12,
+                  font: {
+                    size: 11
+                  }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${label}: ${value} (${percentage}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error('Erreur events chart:', error);
+      }
+    }
+
+    // Charger le graphique d'activité par heure
+    async function loadHourlyChart() {
+      try {
+        const events = getFilteredEvents();
+
+        if (hourlyChartInstance) {
+          hourlyChartInstance.destroy();
+        }
+
+        // Compter les événements par heure
+        const hourCounts = Array(24).fill(0);
+        events.forEach(event => {
+          const date = new Date(event.created_at);
+          const hour = date.getHours();
+          hourCounts[hour]++;
+        });
+
+        if (events.length === 0) {
+          document.getElementById('hourlyChart').parentElement.innerHTML = '<p class="text-gray-500 text-center py-8">Aucune donnée disponible</p>';
+          return;
+        }
+
+        const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+        hourlyChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}h`),
+            datasets: [{
+              label: 'Événements',
+              data: hourCounts,
+              backgroundColor: 'rgba(147, 51, 234, 0.6)',
+              borderColor: '#9333ea',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  precision: 0
+                }
+              },
+              x: {
+                ticks: {
+                  maxRotation: 0,
+                  autoSkip: true,
+                  maxTicksLimit: 12
+                }
+              }
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error('Erreur hourly chart:', error);
+      }
+    }
+
+    // Charger les événements récents
+    async function loadRecentEvents() {
+      try {
+        const eventType = document.getElementById('eventTypeFilter')?.value || 'all';
+
+        // Filtrer les événements
+        let events = getFilteredEvents();
+
+        // Filtrer par type si nécessaire
+        if (eventType !== 'all') {
+          events = events.filter(e => e.event_type === eventType);
+        }
+
+        // Limiter à 50 événements les plus récents
+        events = events
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 50);
+
+        const eventLabels = {
+          'session_start': 'Nouvelle session',
+          'lesson_created': 'Leçon créée',
+          'lesson_edited': 'Leçon modifiée',
+          'lesson_deleted': 'Leçon supprimée',
+          'lesson_imported': 'Leçon importée',
+          'game_started': 'Jeu démarré',
+          'game_completed': 'Jeu terminé',
+          'magic_lesson_used': 'Magic Lesson utilisé'
+        };
+
+        const eventIcons = {
+          'session_start': 'activity',
+          'lesson_created': 'book-plus',
+          'lesson_edited': 'edit',
+          'lesson_deleted': 'trash-2',
+          'lesson_imported': 'download',
+          'game_started': 'play',
+          'game_completed': 'check-circle',
+          'magic_lesson_used': 'sparkles'
+        };
+
+        const eventColors = {
+          'session_start': 'bg-purple-100 text-purple-600',
+          'lesson_created': 'bg-blue-100 text-blue-600',
+          'lesson_edited': 'bg-yellow-100 text-yellow-600',
+          'lesson_deleted': 'bg-red-100 text-red-600',
+          'lesson_imported': 'bg-cyan-100 text-cyan-600',
+          'game_started': 'bg-green-100 text-green-600',
+          'game_completed': 'bg-emerald-100 text-emerald-600',
+          'magic_lesson_used': 'bg-pink-100 text-pink-600'
+        };
+
+        if (events.length === 0) {
+          document.getElementById('recentEventsList').innerHTML = `
+            <p class="text-gray-500 text-center py-8">Aucun événement trouvé</p>
+          `;
+          return;
+        }
+
+        const eventsHTML = events.map(event => {
+          const date = new Date(event.created_at);
+          const timeAgo = getTimeAgo(date);
+          const eventLabel = eventLabels[event.event_type] || event.event_type;
+          const icon = eventIcons[event.event_type] || 'circle';
+          const colorClass = eventColors[event.event_type] || 'bg-gray-100 text-gray-600';
+
+          // Extraire des infos supplémentaires des event_data
+          let details = '';
+          if (event.event_data) {
+            try {
+              const data = typeof event.event_data === 'string'
+                ? JSON.parse(event.event_data)
+                : event.event_data;
+
+              if (data.mode) details += `Mode: ${data.mode}`;
+              if (data.method) details += `Méthode: ${data.method}`;
+              if (data.source) details += `Source: ${data.source}`;
+              if (data.duration) details += ` • Durée: ${data.duration}s`;
+              if (data.score !== undefined) details += ` • Score: ${data.score}`;
+              if (data.card_count) details += ` • ${data.card_count} cartes`;
+            } catch (e) {
+              // Ignorer les erreurs de parsing
+            }
+          }
+
+          return `
+            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+              <div class="w-10 h-10 ${colorClass} rounded-lg flex items-center justify-center flex-shrink-0">
+                <i data-lucide="${icon}" class="w-5 h-5"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 text-sm">${eventLabel}</p>
+                ${details ? `<p class="text-xs text-gray-600 mt-1">${details}</p>` : ''}
+                <p class="text-xs text-gray-500 mt-1">ID: ${event.user_id.substring(0, 8)}... • ${timeAgo}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('recentEventsList').innerHTML = eventsHTML;
+        lucide.createIcons();
+
+      } catch (error) {
+        console.error('Erreur recent events:', error);
+        document.getElementById('recentEventsList').innerHTML = `
+          <p class="text-red-500 text-center py-4">Erreur lors du chargement des événements</p>
+        `;
+      }
+    }
+
+    // Helper pour calculer le temps écoulé
+    function getTimeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+
+      if (seconds < 60) return 'À l\'instant';
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+      if (seconds < 604800) return `${Math.floor(seconds / 86400)}j`;
+
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    }
+
+    // Changer la période
+    async function changePeriod(period) {
+      currentPeriod = period;
+
+      // Mettre à jour les boutons
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('bg-purple-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+      });
+
+      document.getElementById(`period-${period}`).classList.remove('bg-gray-200', 'text-gray-700');
+      document.getElementById(`period-${period}`).classList.add('bg-purple-600', 'text-white');
+
+      // Recharger le cache puis les données
+      try {
+        const eventsData = await apiRequest(`/analytics/events?period=${currentPeriod}&limit=5000`);
+        allEventsCache = eventsData.events || [];
+
+        // Recharger la liste des utilisateurs
+        await loadUsersList();
+
+        // Recharger toutes les données
+        await Promise.all([
+          loadAnalyticsKPIs(),
+          loadTimelineChart(),
+          loadGameModesChart(),
+          loadEventsChart(),
+          loadHourlyChart(),
+          loadRecentEvents()
+        ]);
+        lucide.createIcons();
+      } catch (error) {
+        console.error('Erreur lors du changement de période:', error);
+      }
+    }
+  </script>
+</body>
+</html>

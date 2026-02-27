@@ -1,0 +1,31 @@
+{
+  "name": "flashcard-share-backend",
+  "version": "1.0.0",
+  "description": "Backend pour le partage de leçons de flashcards",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "flashcard",
+    "share",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "node-cron": "^3.0.3",
+    "pg": "^8.11.3",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

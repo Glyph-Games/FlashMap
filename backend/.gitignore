@@ -1,0 +1,33 @@
+# Dépendances
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables d'environnement
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers temporaires
+tmp/
+temp/
+*.tmp
+
+# Base de données
+*.sql.backup
+*.dump

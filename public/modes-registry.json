@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "modes": [
+    {
+      "id": "quiz-timer",
+      "name": "Quiz Chrono",
+      "description": "Répondez aux questions avant la fin du temps ! Ce mode de jeu est une mode de jeu exemple du SDK FlashMap.",
+      "author": "FlashMap Team",
+      "version": "1.0.0",
+      "icon": "alarm-clock",
+      "color": "#EF4444",
+      "scriptUrl": "/examples/quiz-timer.js",
+      "tags": ["timer", "quiz", "compétitif"],
+      "featured": true,
+      "screenshots": [
+        "/examples/screenshots/quiz-timer-1.svg",
+        "/examples/screenshots/quiz-timer-2.svg",
+        "/examples/screenshots/quiz-timer-3.svg"
+      ]
+    }
+  ]
+}
