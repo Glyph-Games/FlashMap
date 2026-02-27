@@ -18,7 +18,7 @@ Lessons can be written manually by the user or created using an image or PDF of 
 
 FlashMap uses the SM-2 learning algorithm to determine the user's knowledge of each cards and help them learn more effectively through spaced repetition learning.
 
-But the best way for you to see the features FlashMap has to offer is [to visit the official website](https://flashmap.app)
+**But the best way for you to see the features FlashMap has to offer is [to visit the official website](https://flashmap.app)**
 
 ## Installation
 
