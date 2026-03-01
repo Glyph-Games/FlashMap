@@ -327,6 +327,11 @@ export default function FlashcardApp() {
       localStorage.setItem('studyQuestData', JSON.stringify(dataToSave));
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
+      if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22) {
+        setToastMessage('Stockage plein : vos données n\'ont pas pu être sauvegardées. Supprimez des images pour libérer de l\'espace.');
+        setToastType('error');
+        setShowToast(true);
+      }
     }
   }, [lessons, currentLessonId, folders]);
 
@@ -1952,8 +1957,8 @@ Exemples de réponses COURTES (à suivre) :
     setIsFlipped(false);
   };
 
-  // Fonction pour convertir une image en base64
-  const convertImageToBase64 = (file) => {
+  // Compresse une image via canvas (max 1200px, JPEG 75%) pour économiser le stockage
+  const compressImage = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.75) => {
     return new Promise((resolve, reject) => {
       if (!file || !file.type.startsWith('image/')) {
         reject(new Error('Le fichier doit être une image'));
@@ -1961,15 +1966,33 @@ Exemples de réponses COURTES (à suivre) :
       }
 
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (error) => reject(error);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
 
   const handleImageUpload = async (file, side, isEditing = false) => {
     try {
-      const base64 = await convertImageToBase64(file);
+      const base64 = await compressImage(file);
       if (isEditing) {
         if (side === 'front') {
           setEditingCardFrontImage(base64);
