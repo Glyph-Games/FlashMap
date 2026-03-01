@@ -178,7 +178,7 @@ export default function FlashcardApp() {
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   // 🔑 Clé API Gemini hardcodée (laisser vide pour utiliser la clé saisie par l'utilisateur)
-  const HARDCODED_GEMINI_KEY = ''; // <- Coller la clé ici si besoin
+  const HARDCODED_GEMINI_KEY = process.env.REACT_APP_GEMINI_API_KEY || ''; // <- Coller la clé ici si besoin
   const [geminiApiKey, setGeminiApiKey] = useState(HARDCODED_GEMINI_KEY || localStorage.getItem('geminiApiKey') || '');
 
   // 🏪 URL du registre de modes communautaires (changer pour la prod)
