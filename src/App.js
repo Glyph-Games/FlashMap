@@ -72,12 +72,47 @@ export default function FlashcardApp() {
     { id: 6, front: 'Quelle est la plus grande planète du système solaire ?', back: 'Jupiter', nextReview: Date.now(), interval: 1, easeFactor: 2.5, repetitions: 0 }
   ];
 
+  const defaultLessons = {
+    'default': {
+      name: 'Leçon Exemple',
+      cards: defaultCards,
+      stats: { studied: 0, correct: 0, incorrect: 0 }
+    }
+  };
+  const defaultFolders = {
+    'uncategorized': {
+      name: 'Sans dossier',
+      color: '#6B7280',
+      lessonIds: ['default'],
+      isExpanded: true
+    }
+  };
+
   const loadInitialData = () => {
     try {
       const savedData = localStorage.getItem('studyQuestData');
       if (savedData) {
         const data = JSON.parse(savedData);
-        // Migration : ajouter les dossiers si ils n'existent pas
+
+        // Format v2 : métadonnées uniquement, les cartes viendront de IndexedDB
+        if (data.version === 2) {
+          const skeletonLessons = {};
+          for (const [id, meta] of Object.entries(data.lessonsMeta || {})) {
+            skeletonLessons[id] = {
+              name: meta.name,
+              cards: [],
+              stats: meta.stats || { studied: 0, correct: 0, incorrect: 0 },
+            };
+          }
+          return {
+            lessons: skeletonLessons,
+            currentLessonId: data.currentLessonId,
+            folders: data.folders,
+            isV2: true,
+          };
+        }
+
+        // Ancien format (v1) : données complètes dans localStorage
         if (!data.folders) {
           const lessonIds = Object.keys(data.lessons);
           data.folders = {
@@ -89,38 +124,30 @@ export default function FlashcardApp() {
             }
           };
         }
-        return data;
+        return { ...data, isV2: false };
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
-    return {
-      lessons: {
-        'default': {
-          name: 'Leçon Exemple',
-          cards: defaultCards,
-          stats: { studied: 0, correct: 0, incorrect: 0 }
-        }
-      },
-      currentLessonId: 'default',
-      folders: {
-        'uncategorized': {
-          name: 'Sans dossier',
-          color: '#6B7280',
-          lessonIds: ['default'],
-          isExpanded: true
-        }
-      }
-    };
+    return null; // Nouvel utilisateur
   };
 
   const initialData = loadInitialData();
+  const startData = initialData || {
+    lessons: defaultLessons,
+    currentLessonId: 'default',
+    folders: defaultFolders,
+    isV2: false,
+  };
 
-  const [lessons, setLessons] = useState(initialData.lessons);
-  const [currentLessonId, setCurrentLessonId] = useState(initialData.currentLessonId);
-  const [cards, setCards] = useState(initialData.lessons[initialData.currentLessonId].cards);
-  const [stats, setStats] = useState(initialData.lessons[initialData.currentLessonId].stats);
-  const [folders, setFolders] = useState(initialData.folders);
+  const [lessons, setLessons] = useState(startData.lessons);
+  const [currentLessonId, setCurrentLessonId] = useState(startData.currentLessonId);
+  const [cards, setCards] = useState(startData.lessons[startData.currentLessonId]?.cards || []);
+  const [stats, setStats] = useState(startData.lessons[startData.currentLessonId]?.stats || { studied: 0, correct: 0, incorrect: 0 });
+  const [folders, setFolders] = useState(startData.folders);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [migrationProgress, setMigrationProgress] = useState(null);
+  const useIDBRef = useRef(true);
   
   const [mode, setMode] = useState('menu');
   const [prevMode, setPrevMode] = useState('menu');
@@ -188,6 +215,8 @@ export default function FlashcardApp() {
   const [showMagicPreviewModal, setShowMagicPreviewModal] = useState(false);
   // TODO: retirer avant déploiement
   window.__showMagicPreview = () => setShowMagicPreviewModal(true);
+  window.__showLoadingOverlay = () => { setIsHydrating(true); setTimeout(() => setIsHydrating(false), 3000); };
+  window.__showMigrationOverlay = () => { setMigrationProgress({ current: 0, total: 5 }); let i = 0; const t = setInterval(() => { i++; setMigrationProgress({ current: i, total: 5 }); if (i >= 5) { clearInterval(t); setTimeout(() => setMigrationProgress(null), 500); } }, 600); };
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
@@ -301,6 +330,85 @@ export default function FlashcardApp() {
   const dueCards = cards.filter(card => card.nextReview <= Date.now());
   const currentCard = sessionQueue.length > 0 ? (cards.find(c => c.id === sessionQueue[0]) || null) : null;
 
+  // Hydratation : charger les données depuis IndexedDB au mount
+  useEffect(() => {
+    const hydrate = async () => {
+      // Nouvel utilisateur : sauvegarder les données par défaut dans IDB
+      if (!initialData) {
+        try {
+          const { isIndexedDBAvailable, saveAllLessonsToIDB } = await import('./utils/db');
+          const idbOk = await isIndexedDBAvailable();
+          useIDBRef.current = idbOk;
+          if (idbOk) {
+            await saveAllLessonsToIDB(defaultLessons);
+            const { saveMetaToLocalStorage, extractLessonsMeta } = await import('./utils/migration');
+            saveMetaToLocalStorage('default', defaultFolders, extractLessonsMeta(defaultLessons));
+          }
+        } catch (error) {
+          console.error('Erreur init IndexedDB:', error);
+          useIDBRef.current = false;
+        }
+        setIsHydrating(false);
+        return;
+      }
+
+      // Ancien format (v1) : lancer la migration
+      if (!initialData.isV2) {
+        try {
+          const { isIndexedDBAvailable } = await import('./utils/db');
+          const idbOk = await isIndexedDBAvailable();
+          useIDBRef.current = idbOk;
+          if (idbOk) {
+            setMigrationProgress({ current: 0, total: Object.keys(initialData.lessons).length });
+            const { migrateToV2 } = await import('./utils/migration');
+            await migrateToV2((current, total) => {
+              setMigrationProgress({ current, total });
+            });
+            setMigrationProgress(null);
+            setToastMessage('Stockage amélioré ! Vous pouvez désormais créer plus de leçons avec plus de contenu.');
+            setToastType('success');
+            setShowToast(true);
+          }
+        } catch (error) {
+          console.error('Erreur migration:', error);
+          useIDBRef.current = false;
+        }
+        // Les données v1 sont déjà en mémoire depuis loadInitialData
+        setIsHydrating(false);
+        return;
+      }
+
+      // Format v2 : charger les données complètes depuis IndexedDB
+      try {
+        const { loadAllLessonsFromIDB, isIndexedDBAvailable } = await import('./utils/db');
+        const idbOk = await isIndexedDBAvailable();
+        useIDBRef.current = idbOk;
+        if (idbOk) {
+          const fullLessons = await loadAllLessonsFromIDB();
+          setLessons(prev => {
+            const merged = { ...prev };
+            for (const [id, idbData] of Object.entries(fullLessons)) {
+              merged[id] = { ...prev[id], ...idbData };
+            }
+            return merged;
+          });
+          const currentFull = fullLessons[startData.currentLessonId];
+          if (currentFull) {
+            setCards(currentFull.cards || []);
+            setStats(currentFull.stats || { studied: 0, correct: 0, incorrect: 0 });
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement IndexedDB:', error);
+        useIDBRef.current = false;
+      }
+      setIsHydrating(false);
+    };
+
+    hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Bloquer le scroll pendant le drag mobile
   useEffect(() => {
     if (isDraggingTouch) {
@@ -317,23 +425,46 @@ export default function FlashcardApp() {
     };
   }, [isDraggingTouch]);
 
+  // Sauvegarde hybride : métadonnées dans localStorage, données complètes dans IndexedDB
+  const saveTimerRef = useRef(null);
   useEffect(() => {
+    if (isHydrating) return;
+
+    // 1. Métadonnées dans localStorage (sync, toujours petit)
     try {
-      const dataToSave = {
-        lessons: lessons,
-        currentLessonId: currentLessonId,
-        folders: folders
-      };
-      localStorage.setItem('studyQuestData', JSON.stringify(dataToSave));
+      const { extractLessonsMeta, saveMetaToLocalStorage } = require('./utils/migration');
+      const meta = extractLessonsMeta(lessons);
+      saveMetaToLocalStorage(currentLessonId, folders, meta);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22) {
-        setToastMessage('Stockage plein : vos données n\'ont pas pu être sauvegardées. Supprimez des images pour libérer de l\'espace.');
-        setToastType('error');
-        setShowToast(true);
-      }
+      console.error('Erreur sauvegarde localStorage:', error);
     }
-  }, [lessons, currentLessonId, folders]);
+
+    // 2. Données complètes dans IndexedDB (async, debounced 500ms)
+    if (useIDBRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        try {
+          const { saveAllLessonsToIDB } = await import('./utils/db');
+          await saveAllLessonsToIDB(lessons);
+        } catch (error) {
+          console.error('Erreur sauvegarde IndexedDB:', error);
+          // Fallback : tenter localStorage complet
+          try {
+            const dataToSave = { lessons, currentLessonId, folders };
+            localStorage.setItem('studyQuestData', JSON.stringify(dataToSave));
+          } catch (lsError) {
+            if (lsError.name === 'QuotaExceededError' || lsError.name === 'NS_ERROR_DOM_QUOTA_REACHED' || lsError.code === 22) {
+              setToastMessage('Stockage plein : vos données n\'ont pas pu être sauvegardées. Supprimez des images pour libérer de l\'espace.');
+              setToastType('error');
+              setShowToast(true);
+            }
+          }
+        }
+      }, 500);
+    }
+
+    return () => clearTimeout(saveTimerRef.current);
+  }, [lessons, currentLessonId, folders, isHydrating]);
 
   // Sauvegarder les modes externes installés
   useEffect(() => {
@@ -580,6 +711,16 @@ export default function FlashcardApp() {
           setMode('menu');
           setToastMessage('Données importées avec succès !');
           setToastType('success');
+          setShowToast(true);
+
+          // Synchroniser IndexedDB avec l'import complet
+          if (useIDBRef.current) {
+            import('./utils/db').then(({ clearAllLessonsFromIDB, saveAllLessonsToIDB }) => {
+              clearAllLessonsFromIDB()
+                .then(() => saveAllLessonsToIDB(data.lessons))
+                .catch(console.error);
+            });
+          }
         }
       } catch (error) {
         alert('Erreur de chargement du fichier. Veuillez vous assurer qu\'il s\'agit d\'un fichier de sauvegarde Study Quest valide.');
@@ -903,6 +1044,13 @@ export default function FlashcardApp() {
     const newLessons = { ...lessons };
     delete newLessons[lessonId];
     setLessons(newLessons);
+
+    // Supprimer de IndexedDB
+    if (useIDBRef.current) {
+      import('./utils/db').then(({ deleteLessonFromIDB }) => {
+        deleteLessonFromIDB(lessonId).catch(console.error);
+      });
+    }
 
     // Supprimer la leçon de tous les dossiers
     const newFolders = { ...folders };
@@ -2128,6 +2276,43 @@ Exemples de réponses COURTES (à suivre) :
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4 sm:p-8 relative">
+      {/* Overlay de chargement / migration */}
+      {(isHydrating || migrationProgress) && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm mx-4 text-center">
+            <BookOpen className="w-12 h-12 text-indigo-600 mx-auto mb-4 animate-pulse" />
+            {migrationProgress ? (
+              <>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                  Mise à jour du stockage...
+                </h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Vos données sont en cours de migration vers un stockage amélioré. Cela ne prendra qu'un instant.
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${migrationProgress.total > 0 ? (migrationProgress.current / migrationProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  {migrationProgress.current} / {migrationProgress.total} leçons
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                  Chargement...
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  Préparation de vos leçons
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
         <div className="absolute top-40 right-10 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -3082,6 +3267,28 @@ Exemples de réponses COURTES (à suivre) :
 
             <div className="flex-1 overflow-y-auto px-8 py-6">
               <div className="space-y-6">
+              {/* Version 1.4.1 */}
+              <div className="border-l-4 border-emerald-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold text-gray-800">Version 1.4.1</h3>
+                  <span className="text-sm text-gray-500">• 02/03/2026</span>
+                </div>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-500 font-bold">•</span>
+                    <span><strong>Stockage amélioré (IndexedDB) :</strong> Les leçons sont désormais stockées dans IndexedDB au lieu du localStorage, permettant de stocker beaucoup plus de contenu et d'images sans perte de données</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-500 font-bold">•</span>
+                    <span><strong>Migration automatique :</strong> Les utilisateurs existants sont automatiquement migrés vers le nouveau stockage avec un écran de progression</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-500 font-bold">•</span>
+                    <span><strong>Compression d'images :</strong> Les images uploadées sont automatiquement compressées pour optimiser l'espace de stockage</span>
+                  </li>
+                </ul>
+              </div>
+
               {/* Version 1.4.0 */}
               <div className="border-l-4 border-orange-500 pl-4">
                 <div className="flex items-center gap-2 mb-2">
