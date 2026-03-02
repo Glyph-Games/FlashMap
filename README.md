@@ -75,6 +75,6 @@ You can create your own custom game modes in JS using the FlashMap SDK [availabl
 
 ---
 
-Made with love by tomyfak in Montpellier, France.
+*Made with love by tomyfak in Montpellier, France.*
 
 
