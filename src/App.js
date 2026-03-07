@@ -313,6 +313,11 @@ export default function FlashcardApp() {
   const [externalModeLoadingId, setExternalModeLoadingId] = useState(null);
   const [showExternalEditModal, setShowExternalEditModal] = useState(false);
   const [externalEditModeId, setExternalEditModeId] = useState(null);
+  const [showMissingModesModal, setShowMissingModesModal] = useState(false);
+  const [missingModes, setMissingModes] = useState([]);
+  const [pendingImportFn, setPendingImportFn] = useState(null);
+  const [installingMissingModes, setInstallingMissingModes] = useState(false);
+  const [missingModesSource, setMissingModesSource] = useState(null); // 'import' | 'sharePreview'
   const externalModeContainerRef = useRef(null);
   const externalEditContainerRef = useRef(null);
   const loadedModulesRef = useRef(new Map());
@@ -322,6 +327,9 @@ export default function FlashcardApp() {
   const gameModesRef = useRef(null);
   const typeInputRef = useRef(null);
   const menuButtonRef = useRef(null);
+  // Files de session pour éviter les doublons dans QCM et Écriture
+  const mcqQueueRef = useRef([]);
+  const typeQueueRef = useRef([]);
 
   // Analytics: Track game session
   const gameStartTimeRef = useRef(null);
@@ -740,13 +748,26 @@ export default function FlashcardApp() {
     try {
       const currentLesson = lessons[currentLessonId];
 
+      // Embarquer les métadonnées des modes externes activés pour que le destinataire puisse les installer
+      const gm = currentLesson.gameModes || {};
+      const externalModesInfo = {};
+      Object.keys(gm).forEach(modeId => {
+        if (gm[modeId] === true && installedModes[modeId]) {
+          const { id, name, description, url, icon, color, author, version } = installedModes[modeId];
+          externalModesInfo[modeId] = { id, name, description, url, icon, color, author, version };
+        }
+      });
+      const lessonToShare = Object.keys(externalModesInfo).length > 0
+        ? { ...currentLesson, _externalModesInfo: externalModesInfo }
+        : currentLesson;
+
       const response = await fetch(`${API_URL}/share`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lesson: currentLesson,
+          lesson: lessonToShare,
           duration: shareDuration,
           oneTime: shareOneTime
         })
@@ -785,6 +806,87 @@ export default function FlashcardApp() {
     }
   };
 
+  // Retourne les modes externes activés dans la leçon qui ne sont pas installés localement
+  const BUILTIN_MODE_IDS = new Set(['flashcards', 'mcq', 'type', 'match']);
+  const getMissingModes = (lesson) => {
+    const gm = lesson?.gameModes || {};
+    const info = lesson?._externalModesInfo || {};
+    return Object.keys(gm)
+      .filter(modeId => gm[modeId] === true && !BUILTIN_MODE_IDS.has(modeId) && !installedModes[modeId])
+      .map(modeId => info[modeId] || { id: modeId, name: modeId, url: null });
+  };
+
+  // Installe tous les modes manquants puis appelle le callback d'import
+  const installAndImport = async () => {
+    setInstallingMissingModes(true);
+    try {
+      for (const modeInfo of missingModes) {
+        if (!modeInfo.url) continue;
+        const moduleDef = await loadExternalMode(modeInfo.url);
+        const meta = {
+          id: moduleDef.id || modeInfo.id,
+          name: moduleDef.name || modeInfo.name,
+          description: moduleDef.description || modeInfo.description || '',
+          author: moduleDef.author || modeInfo.author || 'Inconnu',
+          version: moduleDef.version || modeInfo.version || '1.0.0',
+          url: modeInfo.url,
+          icon: moduleDef.icon || modeInfo.icon || '🧩',
+          color: moduleDef.color || modeInfo.color || '#6366F1',
+          installedAt: Date.now(),
+          hasEditMode: !!moduleDef.onEdit,
+        };
+        setInstalledModes(prev => ({ ...prev, [meta.id]: meta }));
+        loadedModulesRef.current.set(meta.id, moduleDef);
+      }
+      setShowMissingModesModal(false);
+      setMissingModes([]);
+      if (pendingImportFn) pendingImportFn();
+      setPendingImportFn(null);
+    } catch (err) {
+      setToastMessage("Erreur d'installation : " + err.message);
+      setToastType('error');
+      setShowToast(true);
+    } finally {
+      setInstallingMissingModes(false);
+    }
+  };
+
+  // Import depuis l'aperçu de partage via URL (?share=)
+  const handleSharePreviewImport = () => {
+    if (!sharePreviewData) return;
+    const lesson = sharePreviewData.lesson;
+    const missing = getMissingModes(lesson);
+    const doImport = () => {
+      const newLessonId = Date.now().toString();
+      const newLessons = { ...lessons, [newLessonId]: { ...lesson, id: newLessonId } };
+      setLessons(newLessons);
+      const newFolders = { ...folders };
+      if (!newFolders.uncategorized) {
+        newFolders.uncategorized = { name: 'Sans dossier', color: '#6B7280', lessonIds: [], isExpanded: true };
+      }
+      newFolders.uncategorized.lessonIds.push(newLessonId);
+      setFolders(newFolders);
+      setCurrentLessonId(newLessonId);
+      setCards(newLessons[newLessonId].cards);
+      setStats(newLessons[newLessonId].stats);
+      setMode('menu');
+      setShowSharePreview(false);
+      window.history.replaceState({}, '', window.location.pathname);
+      setToastMessage(`Leçon "${lesson.name}" importée avec succès !`);
+      setToastType('success');
+      setShowToast(true);
+    };
+    if (missing.length > 0) {
+      setMissingModes(missing);
+      setPendingImportFn(() => doImport);
+      setShowSharePreview(false);
+      setMissingModesSource('sharePreview');
+      setShowMissingModesModal(true);
+      return;
+    }
+    doImport();
+  };
+
   const retrieveLesson = async () => {
     if (!importCode.trim() || importCode.length !== 5) {
       setImportError('Le code doit contenir exactement 5 caractères');
@@ -818,39 +920,33 @@ export default function FlashcardApp() {
   const addImportedLesson = () => {
     if (!importedLesson) return;
 
-    // Créer un nouvel ID pour la leçon
-    const newLessonId = Date.now().toString();
-
-    // Ajouter la leçon aux leçons existantes
-    const newLessons = {
-      ...lessons,
-      [newLessonId]: {
-        ...importedLesson,
-        id: newLessonId
-      }
+    const missing = getMissingModes(importedLesson);
+    const doImport = () => {
+      const newLessonId = Date.now().toString();
+      const newLessons = { ...lessons, [newLessonId]: { ...importedLesson, id: newLessonId } };
+      setLessons(newLessons);
+      const newFolders = { ...folders };
+      if (!newFolders.uncategorized) newFolders.uncategorized = { lessonIds: [] };
+      newFolders.uncategorized.lessonIds.push(newLessonId);
+      setFolders(newFolders);
+      analytics.trackLessonImported('code');
+      setShowImportModal(false);
+      setImportCode('');
+      setImportedLesson(null);
+      setImportError(null);
+      setToastMessage(`Leçon "${importedLesson.name}" importée avec succès !`);
+      setToastType('success');
     };
 
-    setLessons(newLessons);
-
-    // Ajouter la leçon dans "Sans dossier"
-    const newFolders = { ...folders };
-    if (!newFolders.uncategorized) {
-      newFolders.uncategorized = { lessonIds: [] };
+    if (missing.length > 0) {
+      setMissingModes(missing);
+      setPendingImportFn(() => doImport);
+      setShowImportModal(false);
+      setMissingModesSource('import');
+      setShowMissingModesModal(true);
+      return;
     }
-    newFolders.uncategorized.lessonIds.push(newLessonId);
-    setFolders(newFolders);
-
-    // Analytics: Track lesson import (via code or URL)
-    analytics.trackLessonImported('code');
-
-    // Réinitialiser et fermer
-    setShowImportModal(false);
-    setImportCode('');
-    setImportedLesson(null);
-    setImportError(null);
-
-    setToastMessage(`Leçon "${importedLesson.name}" importée avec succès !`);
-    setToastType('success');
+    doImport();
   };
 
   const resetShareModal = () => {
@@ -1289,20 +1385,25 @@ export default function FlashcardApp() {
   const handleMatchClick = (card) => {
     if (matchedPairs.includes(card.pairId)) return;
     if (selectedMatch.find(s => s.id === card.id)) return;
-    
+
     const newSelected = [...selectedMatch, card];
     setSelectedMatch(newSelected);
-    
+
     if (newSelected.length === 2) {
       if (newSelected[0].pairId === newSelected[1].pairId) {
         setMatchedPairs([...matchedPairs, newSelected[0].pairId]);
-        setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+        // SM-2 : paire trouvée → quality 4
+        updateCardSM2(newSelected[0].pairId, 4);
+        setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
         if (matchedPairs.length + 1 === matchCards.length / 2) {
           setShowConfetti(true);
         }
         setTimeout(() => setSelectedMatch([]), 500);
       } else {
-        setStats(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+        // SM-2 : mauvaise paire → quality 1 sur les deux cartes concernées
+        updateCardSM2(newSelected[0].pairId, 1);
+        updateCardSM2(newSelected[1].pairId, 1);
+        setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
         setTimeout(() => setSelectedMatch([]), 1000);
       }
     }
@@ -1311,28 +1412,38 @@ export default function FlashcardApp() {
   const startMcqGame = () => {
     setMcqScore(0);
     setMcqTotal(0);
+    // Initialiser la file avec toutes les cartes mélangées
+    mcqQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
     setMode('mcq');
     nextMcqQuestion();
   };
 
   const nextMcqQuestion = () => {
-    const shuffled = [...cards].sort(() => Math.random() - 0.5);
-    const question = shuffled[0];
+    // Refill si la file est vide (tour suivant)
+    if (mcqQueueRef.current.length === 0) {
+      mcqQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    }
 
+    // Piocher la prochaine carte de la file (sans remise)
+    const nextId = mcqQueueRef.current.shift();
+    const question = cards.find(c => c.id === nextId);
+    if (!question) { nextMcqQuestion(); return; } // carte supprimée entre-temps, sauter
+
+    // Générer les mauvaises réponses parmi les autres cartes
+    const otherCards = [...cards].filter(c => c.id !== question.id).sort(() => Math.random() - 0.5);
     let wrongAnswers = [];
     if (question.wrongAnswers && question.wrongAnswers.length > 0) {
       // Utiliser les faux choix custom
       wrongAnswers = question.wrongAnswers.map((wa, i) => ({ text: wa, image: null, id: `wrong-${i}` }));
       // Compléter avec des réponses aléatoires si moins de 3 faux choix
       if (wrongAnswers.length < 3) {
-        const otherCards = shuffled.filter(c => c.id !== question.id);
         const extraNeeded = 3 - wrongAnswers.length;
         const extra = otherCards.slice(0, extraNeeded).map(c => ({ text: c.back, image: c.backImage, id: c.id }));
         wrongAnswers = [...wrongAnswers, ...extra];
       }
     } else {
       // Comportement par défaut : piocher dans les autres cartes
-      wrongAnswers = shuffled.slice(1, 4).map(c => ({ text: c.back, image: c.backImage, id: c.id }));
+      wrongAnswers = otherCards.slice(0, 3).map(c => ({ text: c.back, image: c.backImage, id: c.id }));
     }
 
     const allOptions = [{ text: question.back, image: question.backImage, id: question.id, isCorrect: true }, ...wrongAnswers].sort(() => Math.random() - 0.5);
@@ -1346,24 +1457,37 @@ export default function FlashcardApp() {
     setMcqAnswer(answer);
     setMcqTotal(mcqTotal + 1);
 
+    // SM-2 : correct → quality 4, incorrect → quality 1
+    updateCardSM2(mcqQuestion.id, answer.isCorrect ? 4 : 1);
+
     if (answer.isCorrect) {
       setMcqScore(mcqScore + 1);
-      setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
     } else {
-      setStats(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
     }
   };
 
   const startTypeGame = () => {
     setTypeScore(0);
     setTypeTotal(0);
+    // Initialiser la file avec toutes les cartes mélangées
+    typeQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
     setMode('type');
     nextTypeQuestion();
   };
 
   const nextTypeQuestion = () => {
-    const shuffled = [...cards].sort(() => Math.random() - 0.5);
-    const question = shuffled[0];
+    // Refill si la file est vide (tour suivant)
+    if (typeQueueRef.current.length === 0) {
+      typeQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    }
+
+    // Piocher la prochaine carte de la file (sans remise)
+    const nextId = typeQueueRef.current.shift();
+    const question = cards.find(c => c.id === nextId);
+    if (!question) { nextTypeQuestion(); return; } // carte supprimée entre-temps, sauter
+
     setTypeQuestion(question);
     setTypeInput('');
     setTypeResult(null);
@@ -1426,11 +1550,17 @@ export default function FlashcardApp() {
     setTypeTotal(typeTotal + 1);
     setTypeResult(result);
 
+    // SM-2 : correct → quality 5, presque → quality 3, incorrect → quality 1
     if (result === 'correct') {
       setTypeScore(typeScore + 1);
-      setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
-    } else if (result === 'incorrect') {
-      setStats(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
+      updateCardSM2(typeQuestion.id, 5);
+    } else if (result === 'almost') {
+      setStats(prev => ({ ...prev, studied: prev.studied + 1 }));
+      updateCardSM2(typeQuestion.id, 3);
+    } else {
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
+      updateCardSM2(typeQuestion.id, 1);
     }
   };
 
@@ -1439,11 +1569,14 @@ export default function FlashcardApp() {
     setTypeResult(option.isCorrect ? 'correct' : 'incorrect');
     setTypeTotal(typeTotal + 1);
 
+    // SM-2 : correct → quality 5, incorrect → quality 1
+    updateCardSM2(typeQuestion.id, option.isCorrect ? 5 : 1);
+
     if (option.isCorrect) {
       setTypeScore(typeScore + 1);
-      setStats(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
     } else {
-      setStats(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+      setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
     }
   };
 
@@ -1796,18 +1929,37 @@ Exemples de réponses COURTES (à suivre) :
     if (!moduleDef) return;
 
     const lesson = lessons[currentLessonId];
+    const now = Date.now();
+
+    // Cartes complètes avec champs SM-2 (lecture seule — utiliser onCardResult pour les modifier)
     const cardsCopy = cards.map(c => ({
       id: c.id, front: c.front, back: c.back,
       frontImage: c.frontImage || null, backImage: c.backImage || null,
-      wrongAnswers: c.wrongAnswers || []
+      wrongAnswers: c.wrongAnswers || [],
+      nextReview: c.nextReview ?? now,
+      interval: c.interval ?? 1,
+      easeFactor: c.easeFactor ?? 2.5,
+      repetitions: c.repetitions ?? 0,
     }));
+
+    // File de révision SM-2 : uniquement les cartes dues, triées par date de révision
+    const dueCards = cardsCopy
+      .filter(c => c.nextReview <= now)
+      .sort((a, b) => a.nextReview - b.nextReview);
 
     try {
       moduleDef.onPlay({
         container: externalModeContainerRef.current,
         cards: cardsCopy,
+        dueCards,
         lessonName: lesson?.name || '',
         customData: lesson?.externalModeData?.[activeExternalModeId] || null,
+        // SM-2 API : appelé par le mode externe pour noter une carte
+        // quality : 1 = raté | 2 = difficile | 3 = correct (EF stable) | 4 = facile (+0.1) | 5 = parfait (+0.16)
+        onCardResult: (cardId, quality) => {
+          if (typeof quality !== 'number' || quality < 1 || quality > 5) return;
+          updateCardSM2(cardId, Math.round(quality));
+        },
         onComplete: ({ correct, incorrect, studied }) => {
           setStats(prev => ({
             ...prev,
@@ -2068,8 +2220,9 @@ Exemples de réponses COURTES (à suivre) :
     let newEaseFactor = card.easeFactor ?? 2.5;
 
     if (quality >= 3) {
-      // Mise à jour du facteur de facilité (formule SM-2)
-      newEaseFactor = Math.max(1.3, newEaseFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+      // Mise à jour du facteur de facilité (formule SM-2 adaptée échelle 1-5)
+      // (4 - quality) au lieu de (5 - quality) : Bien(3)→±0, Facile(4)→+0.1, Parfait(5)→+0.16
+      newEaseFactor = Math.max(1.3, newEaseFactor + (0.1 - (4 - quality) * (0.08 + (4 - quality) * 0.02)));
 
       // Intervalles SM-2 corrects : 1j → 6j → interval × easeFactor
       if (repetitions === 0) {
@@ -2090,10 +2243,10 @@ Exemples de réponses COURTES (à suivre) :
       // Carte réussie → retirer de la file
       setSessionQueue(prev => prev.slice(1));
     } else {
-      // Réponse incorrecte : réinitialiser SM-2, remettre en fin de file pour revoir dans la session
+      // Réponse incorrecte : réinitialiser SM-2 complètement + remettre en fin de file
       newEaseFactor = Math.max(1.3, newEaseFactor - 0.2);
       setCards(cards.map(c => c.id === card.id
-        ? { ...c, repetitions: 0, easeFactor: newEaseFactor }
+        ? { ...c, repetitions: 0, interval: 1, nextReview: Date.now(), easeFactor: newEaseFactor }
         : c
       ));
       setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
@@ -2103,6 +2256,30 @@ Exemples de réponses COURTES (à suivre) :
     }
 
     setIsFlipped(false);
+  };
+
+  // Applique l'algorithme SM-2 sur une carte donnée (sans toucher à la sessionQueue)
+  // Utilisé par les modes QCM, Écriture et Match pour mettre à jour les intervalles de révision
+  const updateCardSM2 = (cardId, quality) => {
+    setCards(prev => prev.map(c => {
+      if (c.id !== cardId) return c;
+      const repetitions = c.repetitions ?? 0;
+      let newInterval = c.interval ?? 1;
+      let newEaseFactor = c.easeFactor ?? 2.5;
+
+      if (quality >= 3) {
+        // Formule SM-2 adaptée échelle 1-5 : Bien(3)→±0, Facile(4)→+0.1, Parfait(5)→+0.16
+        newEaseFactor = Math.max(1.3, newEaseFactor + (0.1 - (4 - quality) * (0.08 + (4 - quality) * 0.02)));
+        if (repetitions === 0) newInterval = 1;
+        else if (repetitions === 1) newInterval = 6;
+        else newInterval = Math.round(newInterval * newEaseFactor);
+        const nextReview = Date.now() + newInterval * 24 * 60 * 60 * 1000;
+        return { ...c, interval: newInterval, easeFactor: newEaseFactor, repetitions: repetitions + 1, nextReview };
+      } else {
+        newEaseFactor = Math.max(1.3, newEaseFactor - 0.2);
+        return { ...c, repetitions: 0, interval: 1, nextReview: Date.now(), easeFactor: newEaseFactor };
+      }
+    }));
   };
 
   // Compresse une image via canvas (max 1200px, JPEG 75%) pour économiser le stockage
@@ -6697,46 +6874,7 @@ Règles :
                     Annuler
                   </button>
                   <button
-                    onClick={() => {
-                      // Importer la leçon
-                      const newLessonId = Date.now().toString();
-
-                      // Ajouter la leçon aux leçons existantes (comme addImportedLesson)
-                      const newLessons = {
-                        ...lessons,
-                        [newLessonId]: {
-                          ...sharePreviewData.lesson,
-                          id: newLessonId
-                        }
-                      };
-
-                      setLessons(newLessons);
-
-                      // Ajouter au dossier "Sans dossier"
-                      const newFolders = { ...folders };
-                      if (!newFolders.uncategorized) {
-                        newFolders.uncategorized = {
-                          name: 'Sans dossier',
-                          color: '#6B7280',
-                          lessonIds: [],
-                          isExpanded: true
-                        };
-                      }
-                      newFolders.uncategorized.lessonIds.push(newLessonId);
-                      setFolders(newFolders);
-
-                      setCurrentLessonId(newLessonId);
-                      setCards(newLessons[newLessonId].cards);
-                      setStats(newLessons[newLessonId].stats);
-                      setMode('menu');
-                      setShowSharePreview(false);
-                      window.history.replaceState({}, '', window.location.pathname);
-
-                      // Message de succès
-                      setToastMessage(`Leçon "${sharePreviewData.lesson.name}" importée avec succès !`);
-                      setToastType('success');
-                      setShowToast(true);
-                    }}
+                    onClick={handleSharePreviewImport}
                     className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all transform hover:scale-105 font-medium"
                   >
                     Importer
@@ -6744,6 +6882,76 @@ Règles :
                 </div>
               </>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Modal : mode de jeu manquant à l'import */}
+      {showMissingModesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-bounce-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <Gamepad2 className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800">
+                {missingModes.length > 1 ? 'Modes de jeu manquants' : 'Mode de jeu manquant'}
+              </h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">
+              Cette leçon utilise {missingModes.length > 1 ? 'des modes de jeu qui ne sont pas installés' : 'un mode de jeu qui n\'est pas installé'} sur votre appareil. Pour profiter de toutes les fonctionnalités, installez-{missingModes.length > 1 ? 'les' : 'le'} avant d'importer.
+            </p>
+            <div className="space-y-2 mb-6">
+              {missingModes.map(m => (
+                <div key={m.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                  <div className="w-8 h-8 flex items-center justify-center flex-shrink-0" style={{ color: m.color || '#6366F1' }}>
+                    <ModeIcon icon={m.icon || '🧩'} size="md" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 text-sm">{m.name || m.id}</p>
+                    {m.url
+                      ? <p className="text-xs text-gray-400 truncate">{m.url}</p>
+                      : <p className="text-xs text-orange-500">URL non disponible — installation manuelle requise</p>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              {missingModes.some(m => m.url) && (
+                <button
+                  onClick={installAndImport}
+                  disabled={installingMissingModes}
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {installingMissingModes ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Installation en cours…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Installer et importer
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowMissingModesModal(false);
+                  setMissingModes([]);
+                  setPendingImportFn(null);
+                  if (missingModesSource === 'import') setShowImportModal(true);
+                  else if (missingModesSource === 'sharePreview') setShowSharePreview(true);
+                  setMissingModesSource(null);
+                }}
+                disabled={installingMissingModes}
+                className="w-full px-4 py-2 text-gray-400 text-sm hover:text-gray-600 transition-all disabled:opacity-50"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -4,8 +4,8 @@ const db = require('../models/db');
 const { generateUniqueCode } = require('../utils/codeGenerator');
 const { shareLimiter, retrieveLimiter } = require('../middleware/rateLimit');
 
-// Taille maximale acceptée pour une leçon (20 MB)
-const MAX_LESSON_SIZE = 20 * 1024 * 1024;
+// Taille maximale acceptée pour une leçon (100 MB)
+const MAX_LESSON_SIZE = 100 * 1024 * 1024;
 
 /**
  * Calcule la date d'expiration en fonction de la durée choisie
@@ -57,7 +57,7 @@ router.post('/share', shareLimiter, async (req, res) => {
     if (lessonSize > MAX_LESSON_SIZE) {
       return res.status(413).json({
         error: 'Leçon trop volumineuse',
-        details: `Taille maximale: 20 MB, taille actuelle: ${(lessonSize / (1024 * 1024)).toFixed(2)} MB`
+        details: `Taille maximale: 100 MB, taille actuelle: ${(lessonSize / (1024 * 1024)).toFixed(2)} MB`
       });
     }
 

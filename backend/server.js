@@ -29,7 +29,7 @@ app.use(cors({
   exposedHeaders: ['username', 'password', 'X-Admin-Role'] // Permettre les headers custom
 }));
 
-app.use(express.json({ limit: '25mb' })); // Limite pour les images base64
+app.use(express.json({ limit: '100mb' })); // Limite pour les images base64
 
 // Routes
 app.use('/api', shareRoutes);
