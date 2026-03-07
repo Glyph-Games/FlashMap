@@ -216,7 +216,7 @@ export default function FlashcardApp() {
   // TODO: retirer avant déploiement
   window.__showMagicPreview = () => setShowMagicPreviewModal(true);
   window.__showLoadingOverlay = () => { setIsHydrating(true); setTimeout(() => setIsHydrating(false), 3000); };
-  window.__showMigrationOverlay = () => { setMigrationProgress({ current: 0, total: 5 }); let i = 0; const t = setInterval(() => { i++; setMigrationProgress({ current: i, total: 5 }); if (i >= 5) { clearInterval(t); setTimeout(() => setMigrationProgress(null), 500); } }, 600); };
+  window.__showMigrationOverlay = () => { setMigrationProgress({ current: 0, total: 5 }); let i = 0; const t = setInterval(() => { i++; setMigrationProgress({ current: i, total: 5 }); if (i >= 5) { clearInterval(t); setTimeout(() => { setMigrationProgress(null); setToastMessage('Stockage amélioré ! Vous pouvez désormais créer plus de leçons avec plus de contenu.'); setToastType('success'); setShowToast(true); }, 500); } }, 600); };
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
@@ -2276,39 +2276,26 @@ Exemples de réponses COURTES (à suivre) :
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4 sm:p-8 relative">
-      {/* Overlay de chargement / migration */}
-      {(isHydrating || migrationProgress) && (
+      {/* Overlay de migration (événement unique v1→v2) */}
+      {migrationProgress && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[9999] flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm mx-4 text-center">
             <BookOpen className="w-12 h-12 text-indigo-600 mx-auto mb-4 animate-pulse" />
-            {migrationProgress ? (
-              <>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">
-                  Mise à jour du stockage...
-                </h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  Vos données sont en cours de migration vers un stockage amélioré. Cela ne prendra qu'un instant.
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${migrationProgress.total > 0 ? (migrationProgress.current / migrationProgress.total) * 100 : 0}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  {migrationProgress.current} / {migrationProgress.total} leçons
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">
-                  Chargement...
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Préparation de vos leçons
-                </p>
-              </>
-            )}
+            <h3 className="text-lg font-bold text-gray-800 mb-2">
+              Mise à jour du stockage...
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Vos données sont en cours de migration vers un stockage amélioré. Cela ne prendra qu'un instant.
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div
+                className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${migrationProgress.total > 0 ? (migrationProgress.current / migrationProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              {migrationProgress.current} / {migrationProgress.total} leçons
+            </p>
           </div>
         </div>
       )}
