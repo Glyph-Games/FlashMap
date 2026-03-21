@@ -5285,9 +5285,9 @@ Règles :
                 
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-6 border-2 border-indigo-200">
                   <div className="text-indigo-600 text-sm font-medium mb-2">Cartes Étudiées</div>
-                  <div className="text-4xl font-bold text-indigo-700">{stats.studied}</div>
+                  <div className="text-4xl font-bold text-indigo-700">{cards.filter(c => c.repetitions > 0).length}</div>
                   <div className="text-sm text-indigo-600 mt-1">
-                    {cards.length > 0 ? Math.round((stats.studied / cards.length) * 100) : 0}% du total
+                    {cards.length > 0 ? Math.round((cards.filter(c => c.repetitions > 0).length / cards.length) * 100) : 0}% du total
                   </div>
                 </div>
 
@@ -5355,13 +5355,13 @@ Règles :
                     <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-700">En Apprentissage</span>
                       <span className="text-lg font-bold text-yellow-600">
-                        {cards.filter(c => c.interval >= 1 && c.interval < 7).length}
+                        {cards.filter(c => c.repetitions > 0 && c.interval < 7).length}
                       </span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-700">Nouvelles</span>
                       <span className="text-lg font-bold text-red-600">
-                        {cards.filter(c => c.interval < 1).length}
+                        {cards.filter(c => c.repetitions === 0).length}
                       </span>
                     </div>
                   </div>
