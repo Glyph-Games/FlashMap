@@ -117,7 +117,7 @@ onPlay({
 
 #### `onCardResult(cardId, quality)` — Révision espacée (SM-2)
 
-Appelez cette fonction après chaque réponse pour mettre à jour l'algorithme SM-2 de la carte. FlashMap recalcule automatiquement le prochain intervalle de révision.
+Appelez cette fonction après chaque réponse pour mettre à jour l'algorithme SM-2 de la carte. FlashMap recalcule automatiquement le prochain intervalle de révision **et met à jour les statistiques de la leçon en temps réel** (cartes étudiées, correctes, incorrectes).
 
 ```js
 onCardResult(cardId, quality);
@@ -125,29 +125,30 @@ onCardResult(cardId, quality);
 // quality : note de 1 à 5
 ```
 
-| Valeur | Signification | Effet sur la carte |
-| ------ | ------------- | ------------------ |
-| `1`    | Raté / Again  | Reset (repetitions=0, interval=1j, EF -0.2) |
-| `2`    | Difficile, raté | Reset (idem) |
-| `3`    | Correct (effort) | Intervalle progresse, EF inchangé |
-| `4`    | Facile         | Intervalle progresse, EF +0.1 |
-| `5`    | Parfait        | Intervalle progresse, EF +0.16 |
+| Valeur | Signification | Effet sur la carte | Effet sur les stats |
+| ------ | ------------- | ------------------ | ------------------- |
+| `1`    | Raté / Again  | Reset (repetitions=0, interval=1j, EF -0.2) | studied+1, incorrect+1 |
+| `2`    | Difficile, raté | Reset (idem) | studied+1, incorrect+1 |
+| `3`    | Correct (effort) | Intervalle progresse, EF inchangé | studied+1, correct+1 |
+| `4`    | Facile         | Intervalle progresse, EF +0.1 | studied+1, correct+1 |
+| `5`    | Parfait        | Intervalle progresse, EF +0.16 | studied+1, correct+1 |
 
 > **Progression des intervalles** : 1j → 6j → interval × EF (arrondi) à chaque réussite.
 
 > **`dueCards`** contient uniquement les cartes que l'algorithme SM-2 a planifiées pour aujourd'hui. Si le tableau est vide, le joueur n'a rien à réviser.
 
-#### `onComplete(results)`
+> **Sauvegarde automatique** : chaque appel à `onCardResult` sauvegarde immédiatement la progression SM-2, même si le joueur quitte le mode en cours de partie.
 
-Appelez cette fonction à la fin de la partie pour enregistrer les statistiques :
+#### `onComplete(correct)`
+
+Appelez cette fonction à la fin de la partie pour signaler la fin du jeu. FlashMap affiche les confettis si `correct > 0` puis retourne automatiquement au menu.
 
 ```js
-onComplete({
-  correct: 8,     // nombre de bonnes réponses
-  incorrect: 2,   // nombre de mauvaises réponses
-  studied: 10     // nombre total de cartes étudiées
-});
+onComplete({ correct: 8 });
+// correct : nombre de bonnes réponses (utilisé pour les confettis)
 ```
+
+> Les statistiques de la leçon (étudiées, correctes, incorrectes) sont suivies automatiquement via `onCardResult` — il n'est pas nécessaire de les repasser ici.
 
 > Après `onComplete`, le joueur revient automatiquement au menu.
 

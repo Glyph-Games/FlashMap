@@ -1958,16 +1958,18 @@ Exemples de réponses COURTES (à suivre) :
         // quality : 1 = raté | 2 = difficile | 3 = correct (EF stable) | 4 = facile (+0.1) | 5 = parfait (+0.16)
         onCardResult: (cardId, quality) => {
           if (typeof quality !== 'number' || quality < 1 || quality > 5) return;
-          updateCardSM2(cardId, Math.round(quality));
-        },
-        onComplete: ({ correct, incorrect, studied }) => {
+          const q = Math.round(quality);
+          updateCardSM2(cardId, q);
           setStats(prev => ({
             ...prev,
-            correct: prev.correct + (correct || 0),
-            incorrect: prev.incorrect + (incorrect || 0),
-            studied: prev.studied + (studied || 0)
+            studied: prev.studied + 1,
+            correct: q >= 3 ? prev.correct + 1 : prev.correct,
+            incorrect: q < 3 ? prev.incorrect + 1 : prev.incorrect,
           }));
+        },
+        onComplete: ({ correct }) => {
           if (correct > 0) setShowConfetti(true);
+          exitExternalMode();
         },
         onExit: () => exitExternalMode(),
       });
