@@ -5368,6 +5368,63 @@ Règles :
                 </div>
               </div>
 
+              {(() => {
+                const now = Date.now();
+                const in7days = now + 7 * 24 * 60 * 60 * 1000;
+                const dueNow = cards.filter(c => c.nextReview <= now);
+                const dueTomorrow = cards.filter(c => c.nextReview > now && c.nextReview <= now + 24 * 60 * 60 * 1000);
+                const dueWeek = cards.filter(c => c.nextReview > now + 24 * 60 * 60 * 1000 && c.nextReview <= in7days);
+                const unstudied = cards.filter(c => c.repetitions === 0);
+                const nextCard = cards.filter(c => c.repetitions > 0 && c.nextReview > now).sort((a,b) => a.nextReview - b.nextReview)[0];
+                const diffDays = nextCard ? Math.ceil((nextCard.nextReview - now) / (1000 * 60 * 60 * 24)) : null;
+
+                let nextSessionLabel, nextSessionColor, nextSessionBg;
+                if (dueNow.length > 0) {
+                  nextSessionLabel = "Maintenant";
+                  nextSessionColor = "text-red-600";
+                  nextSessionBg = "from-red-50 to-orange-50 border-red-200";
+                } else if (nextCard) {
+                  nextSessionLabel = diffDays === 1 ? "Demain" : `Dans ${diffDays} jours`;
+                  nextSessionColor = "text-green-600";
+                  nextSessionBg = "from-green-50 to-emerald-50 border-green-200";
+                } else {
+                  nextSessionLabel = "—";
+                  nextSessionColor = "text-gray-400";
+                  nextSessionBg = "from-gray-50 to-gray-100 border-gray-200";
+                }
+
+                return (
+                  <div className={`bg-gradient-to-br ${nextSessionBg} rounded-xl p-6 border-2 mb-6`}>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Prochaine Session de Révision</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <div className={`text-4xl font-bold ${nextSessionColor}`}>{nextSessionLabel}</div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          {dueNow.length > 0
+                            ? `${dueNow.length} carte${dueNow.length > 1 ? 's' : ''} en attente de révision`
+                            : nextCard
+                              ? `Prochaine carte due le ${new Date(nextCard.nextReview).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+                              : unstudied.length > 0 ? 'Commence à étudier pour planifier tes révisions' : 'Toutes les cartes sont à jour'}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="text-sm text-gray-600 text-left sm:text-right">Cartes à réviser</div>
+                        <div className="flex gap-4 sm:gap-6">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-500">{dueTomorrow.length}</div>
+                            <div className="text-xs text-gray-500">demain</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-500">{dueWeek.length}</div>
+                            <div className="text-xs text-gray-500">cette semaine</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Facteur de Facilité Moyen</h3>
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -5384,9 +5441,7 @@ Règles :
                   <div className="sm:text-right">
                     <div className="text-sm text-gray-600">Intervalle Moyen</div>
                     <div className="text-2xl font-bold text-purple-600">
-                      {cards.length > 0
-                        ? Math.round(cards.reduce((acc, c) => acc + c.interval, 0) / cards.length)
-                        : 0} jours
+                      {(() => { const avg = cards.length > 0 ? Math.round(cards.reduce((acc, c) => acc + c.interval, 0) / cards.length) : 0; return `${avg} ${avg <= 1 ? 'jour' : 'jours'}`; })()}
                     </div>
                   </div>
                 </div>
