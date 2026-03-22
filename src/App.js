@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain, Plus, RotateCcw, CheckCircle, Trophy, Zap, Target, Gamepad2, Edit, Sparkles, BookOpen, Trash2, Download, Upload, MoreVertical, Folder, FolderPlus, Coffee, Heart, Share2, X, Settings, ArrowLeftRight, Copy, Globe, ExternalLink, Loader, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Brain, Plus, RotateCcw, CheckCircle, Trophy, Zap, Target, Gamepad2, Edit, Sparkles, BookOpen, Trash2, Download, Upload, MoreVertical, Folder, FolderPlus, Coffee, Heart, Share2, X, Settings, ArrowLeftRight, Copy, Globe, ExternalLink, Loader, ChevronLeft, ChevronRight, Star, Search } from 'lucide-react';
 import analytics from './utils/analytics';
 
 // Helper : ajuste la luminosité d'une couleur hex (factor > 1 = plus clair, < 1 = plus sombre)
@@ -305,6 +305,8 @@ export default function FlashcardApp() {
   const [hoveredModeId, setHoveredModeId] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [manageTab, setManageTab] = useState('cards');
+  const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const [cardSearchOpen, setCardSearchOpen] = useState(false);
   const [confirmUninstallMode, setConfirmUninstallMode] = useState(null);
   const [confirmResetProgress, setConfirmResetProgress] = useState(false);
   const [showInstalledModesModal, setShowInstalledModesModal] = useState(false);
@@ -323,6 +325,7 @@ export default function FlashcardApp() {
   const loadedModulesRef = useRef(new Map());
 
   const fileInputRef = useRef(null);
+  const cardSearchInputRef = useRef(null);
   const magicFileInputRef = useRef(null);
   const gameModesRef = useRef(null);
   const typeInputRef = useRef(null);
@@ -339,6 +342,12 @@ export default function FlashcardApp() {
   const currentCard = sessionQueue.length > 0 ? (cards.find(c => c.id === sessionQueue[0]) || null) : null;
 
   // Hydratation : charger les données depuis IndexedDB au mount
+  useEffect(() => {
+    if (cardSearchOpen && cardSearchInputRef.current) {
+      cardSearchInputRef.current.focus();
+    }
+  }, [cardSearchOpen]);
+
   useEffect(() => {
     const hydrate = async () => {
       // Nouvel utilisateur : sauvegarder les données par défaut dans IDB
@@ -5734,9 +5743,44 @@ Règles :
             <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8 animate-slide-in" style={{animationDelay: '0.1s'}}>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Vos Cartes ({cards.length})</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">Vos Cartes ({cards.length})</h2>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: cardSearchOpen ? 'min(192px, calc(100vw - 260px))' : '28px', transition: 'width 300ms ease-in-out', flexShrink: 0, marginTop: '2px' }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '0',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: '192px',
+                        clipPath: cardSearchOpen ? 'inset(0 0px 0 0 round 0.5rem)' : 'inset(0 163px 0 0 round 0.5rem)',
+                        transition: 'clip-path 300ms ease-in-out',
+                      }}
+                    >
+                      <div style={{ width: '192px', height: '32px', display: 'flex', alignItems: 'center', borderRadius: '0.5rem', border: cardSearchOpen ? '1px solid #e5e7eb' : '1px solid transparent', backgroundColor: cardSearchOpen ? 'white' : 'transparent', transition: cardSearchOpen ? 'border-color 0ms, background-color 0ms' : 'border-color 100ms 200ms, background-color 100ms 200ms' }}>
+                        <button
+                          onClick={() => { if (!cardSearchOpen) setCardSearchOpen(true); else { setCardSearchOpen(false); setCardSearchQuery(''); } }}
+                          className={`flex-shrink-0 w-7 h-full flex items-center justify-center text-gray-600 hover:text-gray-800 ${!cardSearchOpen ? 'rounded-lg hover:bg-gray-100' : ''}`}
+                          title={cardSearchOpen ? 'Fermer la recherche' : 'Rechercher une carte'}
+                        >
+                          {cardSearchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+                        </button>
+                        <input
+                          ref={cardSearchInputRef}
+                          type="text"
+                          value={cardSearchQuery}
+                          onChange={e => setCardSearchQuery(e.target.value)}
+                          placeholder="Rechercher..."
+                          className="flex-1 min-w-0 pr-2 text-sm focus:outline-none bg-transparent"
+                          style={{ pointerEvents: cardSearchOpen ? 'auto' : 'none' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   {lessons[currentLessonId]?.flipped && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-600 border border-indigo-200">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-600 border border-indigo-200 mt-0.5 ${cardSearchOpen ? 'opacity-0 sm:opacity-100' : 'opacity-100'}`}
+                      style={{ transition: cardSearchOpen ? 'opacity 0ms' : 'opacity 80ms 300ms', pointerEvents: cardSearchOpen ? 'none' : 'auto' }}
+                    >
                       <ArrowLeftRight className="w-3 h-3" />
                       Inversé
                     </span>
@@ -5776,8 +5820,17 @@ Règles :
               <div className="space-y-3">
                 {cards.length === 0 ? (
                   <p className="text-center text-gray-500 py-8">Aucune carte pour le moment. Ajoutez votre première carte ci-dessus !</p>
-                ) : (
-                  cards.map((card, idx) => (
+                ) : (() => {
+                  const filteredCards = cardSearchQuery.trim()
+                    ? cards.filter(c =>
+                        c.front?.toLowerCase().includes(cardSearchQuery.toLowerCase()) ||
+                        c.back?.toLowerCase().includes(cardSearchQuery.toLowerCase())
+                      )
+                    : cards;
+                  if (filteredCards.length === 0) {
+                    return <p className="text-center text-gray-500 py-8">Aucune carte ne correspond à "<span className="font-medium">{cardSearchQuery}</span>".</p>;
+                  }
+                  return filteredCards.map((card, idx) => (
                     <div key={card.id} className={`border border-gray-200 rounded-lg p-4 transition-all animate-slide-in ${editingCardId === card.id ? 'bg-white' : 'hover:bg-gray-50 hover:shadow-md'}`} style={{animationDelay: `${idx * 0.05}s`}}>
                       {editingCardId === card.id ? (
                         <div className="space-y-3">
@@ -6003,8 +6056,8 @@ Règles :
                         </div>
                       )}
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             </div>
             </>)}
