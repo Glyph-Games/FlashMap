@@ -5566,7 +5566,8 @@ Règles :
                 }`}
               >
                 <Edit className="w-4 h-4" />
-                Édition des cartes
+                <span className="sm:hidden">Cartes</span>
+                <span className="hidden sm:inline">Édition des cartes</span>
               </button>
               <button
                 onClick={() => setManageTab('modes')}
@@ -5744,19 +5745,9 @@ Règles :
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800 whitespace-nowrap">Vos Cartes ({cards.length})</h2>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: cardSearchOpen ? 'min(192px, calc(100vw - 260px))' : '28px', transition: 'width 300ms ease-in-out', flexShrink: 0, marginTop: '2px' }}>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: '0',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: '192px',
-                        clipPath: cardSearchOpen ? 'inset(0 0px 0 0 round 0.5rem)' : 'inset(0 163px 0 0 round 0.5rem)',
-                        transition: 'clip-path 300ms ease-in-out',
-                      }}
-                    >
-                      <div style={{ width: '192px', height: '32px', display: 'flex', alignItems: 'center', borderRadius: '0.5rem', border: cardSearchOpen ? '1px solid #e5e7eb' : '1px solid transparent', backgroundColor: cardSearchOpen ? 'white' : 'transparent', transition: cardSearchOpen ? 'border-color 0ms, background-color 0ms' : 'border-color 100ms 200ms, background-color 100ms 200ms' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: cardSearchOpen ? 'min(192px, calc(100vw - 225px))' : '28px', transition: 'width 300ms ease-in-out', flexShrink: 0, marginTop: '2px' }}>
+                    <div style={{ position: 'absolute', left: '0', top: '50%', transform: 'translateY(-50%)', width: 'min(192px, calc(100vw - 225px))', clipPath: cardSearchOpen ? 'inset(0 0px 0 0 round 0.5rem)' : 'inset(0 calc(100% - 29px) 0 0 round 0.5rem)', transition: 'clip-path 300ms ease-in-out' }}>
+                      <div style={{ width: 'min(192px, calc(100vw - 225px))', height: '32px', display: 'flex', alignItems: 'center', borderRadius: '0.5rem', border: cardSearchOpen ? '1px solid #e5e7eb' : '1px solid transparent', backgroundColor: cardSearchOpen ? 'white' : 'transparent', transition: cardSearchOpen ? 'border-color 0ms, background-color 0ms' : 'border-color 100ms 200ms, background-color 100ms 200ms' }}>
                         <button
                           onClick={() => { if (!cardSearchOpen) setCardSearchOpen(true); else { setCardSearchOpen(false); setCardSearchQuery(''); } }}
                           className={`flex-shrink-0 w-7 h-full flex items-center justify-center text-gray-600 hover:text-gray-800 ${!cardSearchOpen ? 'rounded-lg hover:bg-gray-100' : ''}`}
@@ -5810,7 +5801,8 @@ Règles :
                   </button>
                   <button
                     onClick={() => setConfirmResetProgress(true)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all transform hover:scale-105 font-medium flex items-center gap-2"
+                    className={`px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all transform hover:scale-105 font-medium flex items-center gap-2 ${showFlipLabel ? 'opacity-0 sm:opacity-100 pointer-events-none' : 'opacity-100'}`}
+                    style={{ transition: showFlipLabel ? 'opacity 0ms' : 'opacity 80ms 200ms' }}
                   >
                     <RotateCcw className="w-4 h-4" />
                     Réinitialiser
@@ -6037,7 +6029,7 @@ Règles :
                               </div>
                             )}
                           </div>
-                          <div className="flex gap-2 flex-shrink-0">
+                          <div className={`flex gap-1 sm:gap-2 flex-shrink-0 ${(card.frontImage || card.backImage) ? 'flex-col sm:flex-row' : 'flex-row'}`}>
                             <button
                               onClick={() => startEditingCard(card)}
                               className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-all transform hover:scale-110"
