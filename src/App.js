@@ -190,6 +190,11 @@ export default function FlashcardApp() {
   const [mcqAnswer, setMcqAnswer] = useState(null);
   const [mcqScore, setMcqScore] = useState(0);
   const [mcqTotal, setMcqTotal] = useState(0);
+  const [mcqIsFreeMode, setMcqIsFreeMode] = useState(false);
+  const [mcqDueTotal, setMcqDueTotal] = useState(0);
+  const [mcqRemaining, setMcqRemaining] = useState(0);
+  const [mcqCorrectCount, setMcqCorrectCount] = useState(0);
+  const [mcqSessionDone, setMcqSessionDone] = useState(false);
   
   const [typeQuestion, setTypeQuestion] = useState(null);
   const [typeInput, setTypeInput] = useState('');
@@ -197,6 +202,11 @@ export default function FlashcardApp() {
   const [typeScore, setTypeScore] = useState(0);
   const [typeTotal, setTypeTotal] = useState(0);
   const [typeOptions, setTypeOptions] = useState([]);
+  const [typeIsFreeMode, setTypeIsFreeMode] = useState(false);
+  const [typeDueTotal, setTypeDueTotal] = useState(0);
+  const [typeRemaining, setTypeRemaining] = useState(0);
+  const [typeCorrectCount, setTypeCorrectCount] = useState(0);
+  const [typeSessionDone, setTypeSessionDone] = useState(false);
   const [typeSelectedOption, setTypeSelectedOption] = useState(null);
   
   const [magicLessonName, setMagicLessonName] = useState('');
@@ -332,7 +342,9 @@ export default function FlashcardApp() {
   const menuButtonRef = useRef(null);
   // Files de session pour éviter les doublons dans QCM et Écriture
   const mcqQueueRef = useRef([]);
+  const mcqIsFreeModeRef = useRef(false);
   const typeQueueRef = useRef([]);
+  const typeIsFreeModeRef = useRef(false);
 
   // Analytics: Track game session
   const gameStartTimeRef = useRef(null);
@@ -1421,15 +1433,34 @@ export default function FlashcardApp() {
   const startMcqGame = () => {
     setMcqScore(0);
     setMcqTotal(0);
-    // Initialiser la file avec toutes les cartes mélangées
-    mcqQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    mcqIsFreeModeRef.current = false;
+    setMcqIsFreeMode(false);
+    setMcqSessionDone(false);
+    setMcqCorrectCount(0);
+    const due = cards
+      .filter(c => (c.nextReview ?? 0) <= Date.now())
+      .sort((a, b) => a.nextReview - b.nextReview);
+    setMcqDueTotal(due.length);
+    if (due.length === 0) {
+      setMcqSessionDone(true);
+      setMcqQuestion(null);
+      setMode('mcq');
+      return;
+    }
+    mcqQueueRef.current = due.map(c => c.id);
     setMode('mcq');
     nextMcqQuestion();
   };
 
   const nextMcqQuestion = () => {
-    // Refill si la file est vide (tour suivant)
     if (mcqQueueRef.current.length === 0) {
+      if (!mcqIsFreeModeRef.current) {
+        // Révision SM-2 terminée
+        setMcqSessionDone(true);
+        setMcqQuestion(null);
+        return;
+      }
+      // Mode libre : refill avec toutes les cartes
       mcqQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
     }
 
@@ -1437,6 +1468,7 @@ export default function FlashcardApp() {
     const nextId = mcqQueueRef.current.shift();
     const question = cards.find(c => c.id === nextId);
     if (!question) { nextMcqQuestion(); return; } // carte supprimée entre-temps, sauter
+    setMcqRemaining(mcqQueueRef.current.length);
 
     // Générer les mauvaises réponses parmi les autres cartes
     const otherCards = [...cards].filter(c => c.id !== question.id).sort(() => Math.random() - 0.5);
@@ -1471,31 +1503,63 @@ export default function FlashcardApp() {
 
     if (answer.isCorrect) {
       setMcqScore(mcqScore + 1);
+      setMcqCorrectCount(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
     } else {
+      // Remettre la carte en fin de file pour la revoir
+      mcqQueueRef.current.push(mcqQuestion.id);
+      setMcqRemaining(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
     }
+  };
+
+  const startMcqFreeMode = () => {
+    mcqIsFreeModeRef.current = true;
+    setMcqIsFreeMode(true);
+    setMcqSessionDone(false);
+    setMcqScore(0);
+    setMcqTotal(0);
+    setMcqCorrectCount(0);
+    mcqQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    nextMcqQuestion();
   };
 
   const startTypeGame = () => {
     setTypeScore(0);
     setTypeTotal(0);
-    // Initialiser la file avec toutes les cartes mélangées
-    typeQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    typeIsFreeModeRef.current = false;
+    setTypeIsFreeMode(false);
+    setTypeSessionDone(false);
+    setTypeCorrectCount(0);
+    const due = cards
+      .filter(c => (c.nextReview ?? 0) <= Date.now())
+      .sort((a, b) => a.nextReview - b.nextReview);
+    setTypeDueTotal(due.length);
+    if (due.length === 0) {
+      setTypeSessionDone(true);
+      setTypeQuestion(null);
+      setMode('type');
+      return;
+    }
+    typeQueueRef.current = due.map(c => c.id);
     setMode('type');
     nextTypeQuestion();
   };
 
   const nextTypeQuestion = () => {
-    // Refill si la file est vide (tour suivant)
     if (typeQueueRef.current.length === 0) {
+      if (!typeIsFreeModeRef.current) {
+        setTypeSessionDone(true);
+        setTypeQuestion(null);
+        return;
+      }
       typeQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
     }
 
-    // Piocher la prochaine carte de la file (sans remise)
     const nextId = typeQueueRef.current.shift();
     const question = cards.find(c => c.id === nextId);
-    if (!question) { nextTypeQuestion(); return; } // carte supprimée entre-temps, sauter
+    if (!question) { nextTypeQuestion(); return; }
+    setTypeRemaining(typeQueueRef.current.length);
 
     setTypeQuestion(question);
     setTypeInput('');
@@ -1515,6 +1579,17 @@ export default function FlashcardApp() {
     } else {
       setTypeOptions([]);
     }
+  };
+
+  const startTypeFreeMode = () => {
+    typeIsFreeModeRef.current = true;
+    setTypeIsFreeMode(true);
+    setTypeSessionDone(false);
+    setTypeScore(0);
+    setTypeTotal(0);
+    setTypeCorrectCount(0);
+    typeQueueRef.current = [...cards].sort(() => Math.random() - 0.5).map(c => c.id);
+    nextTypeQuestion();
   };
 
   const levenshteinDistance = (a, b) => {
@@ -1562,12 +1637,17 @@ export default function FlashcardApp() {
     // SM-2 : correct → quality 5, presque → quality 3, incorrect → quality 1
     if (result === 'correct') {
       setTypeScore(typeScore + 1);
+      setTypeCorrectCount(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
       updateCardSM2(typeQuestion.id, 5);
     } else if (result === 'almost') {
+      typeQueueRef.current.push(typeQuestion.id);
+      setTypeRemaining(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1 }));
       updateCardSM2(typeQuestion.id, 3);
     } else {
+      typeQueueRef.current.push(typeQuestion.id);
+      setTypeRemaining(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
       updateCardSM2(typeQuestion.id, 1);
     }
@@ -1583,8 +1663,11 @@ export default function FlashcardApp() {
 
     if (option.isCorrect) {
       setTypeScore(typeScore + 1);
+      setTypeCorrectCount(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, correct: prev.correct + 1 }));
     } else {
+      typeQueueRef.current.push(typeQuestion.id);
+      setTypeRemaining(prev => prev + 1);
       setStats(prev => ({ ...prev, studied: prev.studied + 1, incorrect: prev.incorrect + 1 }));
     }
   };
@@ -4882,14 +4965,81 @@ Règles :
           </div>
         )}
 
-        {mode === 'mcq' && mcqQuestion && (
+        {mode === 'mcq' && mcqSessionDone && (
+          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-10 animate-slide-in flex flex-col items-center text-center gap-4">
+            {mcqDueTotal === 0 ? (
+              <>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-green-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Tout est à jour !</h2>
+                <p className="text-gray-500">Aucune carte à réviser aujourd'hui pour cette leçon.</p>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Trophy className="w-10 h-10 text-yellow-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Révision terminée !</h2>
+                <div className="flex gap-6 mt-1">
+                  <div className="bg-green-50 rounded-xl px-6 py-3">
+                    <div className="text-3xl font-bold text-green-600">{mcqScore}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Correct</div>
+                  </div>
+                  <div className="bg-red-50 rounded-xl px-6 py-3">
+                    <div className="text-3xl font-bold text-red-500">{mcqTotal - mcqScore}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Incorrect</div>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-sm">Les intervalles SM-2 ont été mis à jour.</p>
+              </>
+            )}
+            <div className="flex gap-3 mt-2 flex-wrap justify-center">
+              <button
+                onClick={startMcqFreeMode}
+                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all hover:scale-105"
+              >
+                Entraînement libre
+              </button>
+              <button
+                onClick={() => setMode('menu')}
+                className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-all hover:scale-105"
+              >
+                Terminer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === 'mcq' && !mcqSessionDone && mcqQuestion && (
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 animate-slide-in" key={`mcq-${animationKey}`}>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Choix Multiple</h2>
-              <div className="text-base sm:text-lg font-bold text-green-600">
-                Score: {mcqScore} / {mcqTotal}
+            <div className="flex flex-row justify-between items-center gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Choix Multiple</h2>
+                {mcqIsFreeMode && (
+                  <span className="text-xs font-semibold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">Mode libre</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {!mcqIsFreeMode && (
+                  <span className="text-sm font-medium text-gray-500">
+                    {mcqCorrectCount} / {mcqDueTotal}
+                  </span>
+                )}
+                <div className="text-base font-bold text-green-600">
+                  Score: {mcqScore} / {mcqTotal}
+                </div>
               </div>
             </div>
+
+            {!mcqIsFreeMode && (
+              <div className="w-full h-1.5 bg-gray-100 rounded-full mb-4 overflow-hidden">
+                <div
+                  className="h-full bg-green-500 rounded-full transition-all duration-300"
+                  style={{ width: `${mcqDueTotal > 0 ? (mcqCorrectCount / mcqDueTotal) * 100 : 0}%` }}
+                />
+              </div>
+            )}
 
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 sm:p-8 mb-6 animate-bounce-in shadow-xl">
               <p className="text-white text-lg sm:text-xl text-center font-medium mb-4">
@@ -4952,7 +5102,7 @@ Règles :
                     onClick={() => { setMcqAnswer(null); nextMcqQuestion(); }}
                     className={`ml-4 px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 flex-shrink-0 opacity-80 hover:opacity-100 ${mcqAnswer.isCorrect ? 'bg-green-700/15 hover:bg-green-700/25' : 'bg-red-700/15 hover:bg-red-700/25'}`}
                   >
-                    Suivant →
+                    {mcqRemaining === 0 && !mcqIsFreeMode && mcqAnswer?.isCorrect ? 'Voir les résultats →' : 'Suivant →'}
                   </button>
                 </div>
               </div>
@@ -4960,14 +5110,81 @@ Règles :
           </div>
         )}
 
-        {mode === 'type' && typeQuestion && (
+        {mode === 'type' && typeSessionDone && (
+          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-10 animate-slide-in flex flex-col items-center text-center gap-4">
+            {typeDueTotal === 0 ? (
+              <>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-green-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Tout est à jour !</h2>
+                <p className="text-gray-500">Aucune carte à réviser aujourd'hui pour cette leçon.</p>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Trophy className="w-10 h-10 text-yellow-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Révision terminée !</h2>
+                <div className="flex gap-6 mt-1">
+                  <div className="bg-green-50 rounded-xl px-6 py-3">
+                    <div className="text-3xl font-bold text-green-600">{typeScore}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Correct</div>
+                  </div>
+                  <div className="bg-red-50 rounded-xl px-6 py-3">
+                    <div className="text-3xl font-bold text-red-500">{typeTotal - typeScore}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Incorrect</div>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-sm">Les intervalles SM-2 ont été mis à jour.</p>
+              </>
+            )}
+            <div className="flex gap-3 mt-2 flex-wrap justify-center">
+              <button
+                onClick={startTypeFreeMode}
+                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all hover:scale-105"
+              >
+                Entraînement libre
+              </button>
+              <button
+                onClick={() => setMode('menu')}
+                className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-all hover:scale-105"
+              >
+                Terminer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === 'type' && !typeSessionDone && typeQuestion && (
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 animate-slide-in" key={`type-${animationKey}`}>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Défi de Frappe</h2>
-              <div className="text-base sm:text-lg font-bold text-orange-600">
-                Score: {typeScore} / {typeTotal}
+            <div className="flex flex-row justify-between items-center gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Défi de Frappe</h2>
+                {typeIsFreeMode && (
+                  <span className="text-xs font-semibold bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">Mode libre</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {!typeIsFreeMode && (
+                  <span className="text-sm font-medium text-gray-500">
+                    {typeCorrectCount} / {typeDueTotal}
+                  </span>
+                )}
+                <div className="text-base font-bold text-orange-600">
+                  Score: {typeScore} / {typeTotal}
+                </div>
               </div>
             </div>
+
+            {!typeIsFreeMode && (
+              <div className="w-full h-1.5 bg-gray-100 rounded-full mb-4 overflow-hidden">
+                <div
+                  className="h-full bg-orange-500 rounded-full transition-all duration-300"
+                  style={{ width: `${typeDueTotal > 0 ? (typeCorrectCount / typeDueTotal) * 100 : 0}%` }}
+                />
+              </div>
+            )}
 
             <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 sm:p-8 mb-6 animate-bounce-in shadow-xl">
               <p className="text-white text-lg sm:text-xl text-center font-medium mb-4">
@@ -5009,7 +5226,7 @@ Règles :
                       onClick={nextTypeQuestion}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105 opacity-80 hover:opacity-100 flex-shrink-0 ${typeResult === 'correct' ? '' : 'self-start sm:self-auto'} ${typeResult === 'correct' ? 'bg-green-700/15 hover:bg-green-700/25' : typeResult === 'almost' ? 'bg-orange-700/15 hover:bg-orange-700/25' : 'bg-red-700/15 hover:bg-red-700/25'}`}
                     >
-                      Suivant →
+                      {typeRemaining === 0 && !typeIsFreeMode && typeResult === 'correct' ? 'Voir les résultats →' : 'Suivant →'}
                     </button>
                   </div>
                   {typeResult !== 'correct' && !typeQuestion.back && typeQuestion.backImage && (
@@ -5802,7 +6019,7 @@ Règles :
                   <button
                     onClick={() => setConfirmResetProgress(true)}
                     className={`px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all transform hover:scale-105 font-medium flex items-center gap-2 ${showFlipLabel ? 'opacity-0 sm:opacity-100 pointer-events-none' : 'opacity-100'}`}
-                    style={{ transition: showFlipLabel ? 'opacity 0ms' : 'opacity 80ms 200ms' }}
+                    style={{ transition: showFlipLabel ? 'opacity 80ms 120ms' : 'opacity 80ms 200ms' }}
                   >
                     <RotateCcw className="w-4 h-4" />
                     Réinitialiser
