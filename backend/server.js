@@ -6,6 +6,7 @@ const shareRoutes = require('./routes/share');
 const adminRoutes = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const quizletRoutes = require('./routes/quizlet');
+const magicRoutes = require('./routes/magic');
 const { startCleanupSchedule } = require('./utils/cleanup');
 const db = require('./models/db');
 
@@ -36,6 +37,7 @@ app.use('/api', shareRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/quizlet', quizletRoutes);
+app.use('/api/magic', magicRoutes);
 
 // Route de santé
 app.get('/health', (req, res) => {
@@ -55,6 +57,7 @@ app.get('/', (req, res) => {
       share: 'POST /api/share',
       retrieve: 'GET /api/retrieve/:code',
       check: 'GET /api/check/:code',
+      magic: 'POST /api/magic/generate',
       health: 'GET /health'
     }
   });

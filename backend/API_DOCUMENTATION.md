@@ -255,10 +255,54 @@ Retourne les informations sur l'API et ses endpoints.
     "share": "POST /api/share",
     "retrieve": "GET /api/retrieve/:code",
     "check": "GET /api/check/:code",
+    "magic": "POST /api/magic/generate",
     "health": "GET /health"
   }
 }
 ```
+
+---
+
+### 6. Générer une Magic Lesson
+
+Génère des flashcards depuis un document (image ou PDF) via Gemini, en utilisant la clé API du serveur (`GEMINI_API_KEY`). La clé ne transite jamais par le navigateur de l'utilisateur.
+
+Le frontend n'utilise cette route que s'il a été compilé avec `REACT_APP_MAGIC_PROXY=true` et que l'utilisateur n'a pas configuré sa propre clé.
+
+**Endpoint:** `POST /api/magic/generate`
+
+**Body:**
+```json
+{
+  "instructions": "Concentre-toi sur les dates",
+  "mimeType": "application/pdf",
+  "data": "JVBERi0xLjQK..."
+}
+```
+
+| Champ | Type | Obligatoire | Description |
+| ----- | ---- | ----------- | ----------- |
+| `instructions` | string | Non | Consignes supplémentaires ajoutées au prompt |
+| `mimeType` | string | Oui | Type MIME du fichier (`image/png`, `image/jpeg`, `application/pdf`) |
+| `data` | string | Oui | Contenu du fichier encodé en base64 (sans préfixe `data:`) |
+
+Les appels à Gemini passent uniquement en IPv4 : Google refuse l'IPv6 de certains serveurs (`User location is not supported for the API use`).
+
+Le prompt et le modèle sont définis côté serveur. Modèle par défaut : `gemini-3.5-flash`, modifiable avec la variable `GEMINI_MODEL`.
+
+**Réponse (200 OK) :** seul le texte généré est renvoyé, dans la même structure que la réponse Gemini (le texte est le tableau JSON de cartes produit par le modèle) :
+```json
+{
+  "candidates": [{ "content": { "parts": [{ "text": "[{\"question\": \"...\", \"answer\": \"...\", \"wrongAnswers\": [\"...\"]}]" }] } }]
+}
+```
+
+**Erreurs** (format `{ "error": { "code", "status", "message" } }`) :
+- `503` `NOT_CONFIGURED` : `GEMINI_API_KEY` n'est pas définie
+- `400` `INVALID_ARGUMENT` : `mimeType` ou `data` manquant
+- Erreur Gemini : même code HTTP et même `status` que Gemini (ex. `503` `UNAVAILABLE` si le modèle est surchargé, `403` `PERMISSION_DENIED` si la clé est suspendue), avec un message générique. Le détail n'est écrit que dans les logs du serveur, car le message de Gemini peut contenir la clé API.
+- `502` `EMPTY_RESPONSE` : Gemini n'a renvoyé aucun texte
+- `500` `INTERNAL` : erreur inattendue
 
 ---
 
@@ -429,6 +473,11 @@ DB_PASSWORD=your_password
 PORT=3001
 NODE_ENV=development
 ALLOWED_ORIGIN=http://localhost:3000
+
+# Clé API Gemini pour les Magic Lessons (optionnelle)
+GEMINI_API_KEY=your_gemini_api_key
+# Modèle Gemini (optionnel, défaut : gemini-3.5-flash)
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 ---

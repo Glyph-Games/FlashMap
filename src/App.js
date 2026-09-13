@@ -217,6 +217,10 @@ export default function FlashcardApp() {
   // 🔑 Clé API Gemini hardcodée (laisser vide pour utiliser la clé saisie par l'utilisateur)
   const HARDCODED_GEMINI_KEY = process.env.REACT_APP_GEMINI_API_KEY || ''; // <- Coller la clé ici si besoin
   const [geminiApiKey, setGeminiApiKey] = useState(HARDCODED_GEMINI_KEY || localStorage.getItem('geminiApiKey') || '');
+  // 🌐 Instance officielle (flashmap.app) : sans clé perso, les Magic Lessons passent par le backend
+  // (la clé Gemini reste sur le serveur). Activé au build avec REACT_APP_MAGIC_PROXY=true.
+  // ⚠️ Ne jamais définir REACT_APP_GEMINI_API_KEY pour un build public : elle serait lisible dans le bundle JS.
+  const USE_MAGIC_PROXY = process.env.REACT_APP_MAGIC_PROXY === 'true';
 
   // 🏪 URL du registre de modes communautaires (changer pour la prod)
   const REGISTRY_URL = '/modes-registry.json';
@@ -1776,10 +1780,15 @@ export default function FlashcardApp() {
 
     setIsGenerating(true);
 
+    // Clé perso (UI ou HARDCODED_GEMINI_KEY) → appel direct à Gemini
+    // Sinon, sur l'instance officielle → proxy backend (la clé ne passe pas par le navigateur)
+    const useProxy = !geminiApiKey.trim() && USE_MAGIC_PROXY;
+
     try {
       const base64File = await fileToBase64(uploadedFile);
       const mimeType = uploadedFile.type;
 
+      // ⚠️ Garder synchronisé avec buildPrompt dans backend/routes/magic.js
       const prompt = `Analyse ce document et génère le MAXIMUM de flashcards possible pour apprendre son contenu de manière exhaustive.${magicInstructions.trim() ? `\n\nInstructions spécifiques de l'utilisateur : ${magicInstructions.trim()}` : ''}
 
 IMPORTANT: Réponds UNIQUEMENT avec un tableau JSON valide, sans texte avant ou après, dans ce format exact:
@@ -1811,26 +1820,38 @@ Exemples de réponses COURTES (à suivre) :
 ❌ MAUVAIS : "On peut dire que c'est environ 9,81 mètres par seconde au carré"
 ✅ BON : "9,81 m/s²" avec wrongAnswers: ["6,67 m/s²", "3,14 m/s²", "1,62 m/s²"]`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': geminiApiKey
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64File
-                }
-              }
-            ]
-          }]
-        })
-      });
+      const response = useProxy
+        ? await fetch(`${API_URL}/magic/generate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              instructions: magicInstructions.trim(),
+              mimeType,
+              data: base64File
+            })
+          })
+        : await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': geminiApiKey
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  {
+                    inline_data: {
+                      mime_type: mimeType,
+                      data: base64File
+                    }
+                  }
+                ]
+              }]
+            })
+          });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -1845,7 +1866,11 @@ Exemples de réponses COURTES (à suivre) :
       }
 
       const data = await response.json();
-      const textResponse = data.candidates[0].content.parts[0].text;
+      // Les modèles Gemini 3 peuvent découper la réponse en plusieurs parts (dont des pensées) : on garde le texte final
+      const textResponse = data.candidates[0].content.parts
+        .filter(part => typeof part.text === 'string' && !part.thought)
+        .map(part => part.text)
+        .join('');
 
       const newCards = importFlashcardsFromJson(textResponse, magicLessonName);
 
@@ -1860,7 +1885,9 @@ Exemples de réponses COURTES (à suivre) :
 
     } catch (error) {
       console.error('Erreur:', error);
-      setToastMessage('Erreur lors de la génération des cartes. Vérifiez votre clé API et réessayez.');
+      setToastMessage(useProxy
+        ? 'Erreur lors de la génération des cartes. Veuillez réessayer.'
+        : 'Erreur lors de la génération des cartes. Vérifiez votre clé API et réessayez.');
       setToastType('error');
       setToastAction(null);
       setShowToast(true);
@@ -2661,7 +2688,7 @@ Exemples de réponses COURTES (à suivre) :
                 onClick={() => {
                   setShowLessonModal(false);
                   setMode('magic-lesson');
-                  if (!geminiApiKey.trim()) {
+                  if (!geminiApiKey.trim() && !USE_MAGIC_PROXY) {
                     setShowApiKeyModal(true);
                   }
                 }}

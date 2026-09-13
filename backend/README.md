@@ -10,6 +10,7 @@ Backend Node.js/Express pour le partage temporaire de leçons de flashcards.
 - 🧹 **Nettoyage automatique** : Suppression automatique des leçons expirées toutes les heures
 - 🛡️ **Rate limiting** : Protection contre les abus
 - 📊 **Support des images** : Stockage des images en base64
+- ✨ **Magic Lessons** : Génération de cartes via Gemini avec la clé API du serveur (`POST /api/magic/generate`)
 
 ## Stack technique
 
@@ -84,6 +85,9 @@ backend/
    PORT=3001
    NODE_ENV=development
    ALLOWED_ORIGIN=http://localhost:3000
+
+   # Clé API Gemini pour les Magic Lessons (optionnelle)
+   GEMINI_API_KEY=votre_cle_gemini
    ```
 
 4. **Démarrer le serveur** :

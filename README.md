@@ -55,6 +55,11 @@ npm run build
 ```
 >On first launch, if no API key is configured, a modal will automatically appear prompting you to enter it.
 
+### Gemini API key (Magic Lessons)
+
+- **Local / personal build**: enter your key in the app when prompted (it is stored in your browser), or set `REACT_APP_GEMINI_API_KEY` in a `.env` file at the project root before `npm start` / `npm run build`.
+- **Public deployment**: never set `REACT_APP_GEMINI_API_KEY` for a build served to other people: it is embedded in the JavaScript bundle and anyone can read it. Instead, put the key in the backend (`GEMINI_API_KEY` in `backend/.env`) and build the frontend with `REACT_APP_MAGIC_PROXY=true`. Users without their own key will then generate Magic Lessons through the backend, and the key never reaches their browser.
+
 ## Language
 
 Currently FlashMap is developed and available only in French, but your contribution to translate FlashMap into another language will be greatly appreciated.
