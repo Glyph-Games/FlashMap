@@ -2743,7 +2743,7 @@ Exemples de réponses COURTES (à suivre) :
             {showApiKeyInfo && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4 text-xs text-gray-600">
                 Vous pouvez hardcoder une clé API directement dans le code source.<br />
-                Ouvrez <span className="font-mono bg-gray-200 px-1 rounded">src/App.js</span> à la ligne <span className="font-mono bg-gray-200 px-1 rounded">119</span> et collez votre clé dans <span className="font-mono bg-gray-200 px-1 rounded">HARDCODED_GEMINI_KEY</span>.
+                Ouvrez <span className="font-mono bg-gray-200 px-1 rounded">src/App.js</span> à la ligne <span className="font-mono bg-gray-200 px-1 rounded">218</span> et collez votre clé dans <span className="font-mono bg-gray-200 px-1 rounded">HARDCODED_GEMINI_KEY</span>.
               </div>
             )}
             <p className="text-sm text-gray-600 mb-4">
