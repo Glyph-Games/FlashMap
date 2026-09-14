@@ -94,14 +94,9 @@ export function AiLessonHeader({ info, subtitle }) {
         {provider.name ? `Leçon créée par ${provider.name}` : 'Leçon créée par IA'}
       </h2>
       {modelLabel && (
-        <div className={`flex justify-center ${subtitle ? 'mb-3' : 'mb-4'}`}>
-          <span
-            className="px-3 py-1 rounded-full text-xs font-semibold"
-            style={{ backgroundColor: tint, color }}
-          >
-            {modelLabel}
-          </span>
-        </div>
+        <p className={`text-sm text-gray-500 text-center ${subtitle ? 'mb-2' : 'mb-6'}`}>
+          Générée avec <span className="font-medium text-gray-700">{modelLabel}</span>
+        </p>
       )}
       {subtitle && <p className="text-gray-600 mb-6 text-center">{subtitle}</p>}
     </>
