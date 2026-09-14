@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Brain, Plus, RotateCcw, CheckCircle, Trophy, Zap, Target, Gamepad2, Edit, Sparkles, BookOpen, Trash2, Download, Upload, MoreVertical, Folder, FolderPlus, Coffee, Heart, Share2, X, Settings, ArrowLeftRight, Copy, Globe, ExternalLink, Loader, ChevronLeft, ChevronRight, Star, Search } from 'lucide-react';
 import analytics from './utils/analytics';
+import { getAiLessonInfo, AiLessonHeader } from './components/AiGeneratedLesson';
 
 // Helper : ajuste la luminosité d'une couleur hex (factor > 1 = plus clair, < 1 = plus sombre)
 function adjustColor(hex, factor) {
@@ -930,7 +931,7 @@ export default function FlashcardApp() {
       }
 
       const data = await response.json();
-      setImportedLesson(data.lesson);
+      setImportedLesson(typeof data.lesson === 'string' ? JSON.parse(data.lesson) : data.lesson);
 
     } catch (error) {
       console.error('Erreur récupération:', error);
@@ -2572,6 +2573,10 @@ Exemples de réponses COURTES (à suivre) :
     }));
   };
 
+  // Signature IA (MCP FlashMap) des leçons en cours d'import
+  const shareAiInfo = getAiLessonInfo(sharePreviewData?.lesson);
+  const importedAiInfo = getAiLessonInfo(importedLesson);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4 sm:p-8 relative">
       {/* Overlay de migration (événement unique v1→v2) */}
@@ -3212,12 +3217,21 @@ Exemples de réponses COURTES (à suivre) :
               </>
             ) : (
               <>
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Leçon trouvée !</h2>
+                {importedAiInfo ? (
+                  <AiLessonHeader info={importedAiInfo} />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Leçon trouvée !</h2>
+                  </>
+                )}
 
-                <div className="p-4 rounded-lg border-2 border-indigo-600 bg-indigo-50 mb-6">
+                <div
+                  className={`p-4 rounded-lg border-2 mb-6 ${importedAiInfo ? '' : 'border-indigo-600 bg-indigo-50'}`}
+                  style={importedAiInfo ? { borderColor: importedAiInfo.color, backgroundColor: importedAiInfo.tint } : undefined}
+                >
                   <h3 className="font-bold text-gray-800 mb-1">{importedLesson.name}</h3>
                   <p className="text-sm text-gray-600">{importedLesson.cards?.length || 0} cartes</p>
                 </div>
@@ -3235,7 +3249,8 @@ Exemples de réponses COURTES (à suivre) :
                   </button>
                   <button
                     onClick={addImportedLesson}
-                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all transform hover:scale-105 font-medium"
+                    className={`flex-1 px-6 py-3 text-white rounded-lg transition-all transform hover:scale-105 font-medium ${importedAiInfo ? 'hover:brightness-110' : 'bg-green-600 hover:bg-green-700'}`}
+                    style={importedAiInfo ? { backgroundColor: importedAiInfo.color } : undefined}
                   >
                     Ajouter à mes leçons
                   </button>
@@ -7178,13 +7193,22 @@ Règles :
               </>
             ) : sharePreviewData ? (
               <>
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
-                  <BookOpen className="w-8 h-8 text-purple-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Leçon partagée</h2>
-                <p className="text-gray-600 mb-6 text-center">
-                  Voulez-vous ajouter cette leçon à votre espace ?
-                </p>
+                {shareAiInfo ? (
+                  <AiLessonHeader
+                    info={shareAiInfo}
+                    subtitle="Voulez-vous ajouter cette leçon à votre espace ?"
+                  />
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
+                      <BookOpen className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Leçon partagée</h2>
+                    <p className="text-gray-600 mb-6 text-center">
+                      Voulez-vous ajouter cette leçon à votre espace ?
+                    </p>
+                  </>
+                )}
 
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-2">{sharePreviewData.lesson.name}</h3>
@@ -7221,7 +7245,8 @@ Règles :
                   </button>
                   <button
                     onClick={handleSharePreviewImport}
-                    className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all transform hover:scale-105 font-medium"
+                    className={`flex-1 px-6 py-3 text-white rounded-lg transition-all transform hover:scale-105 font-medium ${shareAiInfo ? 'hover:brightness-110' : 'bg-purple-600 hover:bg-purple-700'}`}
+                    style={shareAiInfo ? { backgroundColor: shareAiInfo.color } : undefined}
                   >
                     Importer
                   </button>
