@@ -143,10 +143,16 @@ export default function PlusSurveyModal({ onClose }) {
                 </tbody>
               </table>
               <p className="px-3 py-2 text-xs text-gray-500 border-t border-gray-100">
-                Quizlet Plus compte vos tests et vos sessions. FlashMap Plus n'a aucune limite pour réviser.
-                Tarifs Quizlet relevés sur quizlet.com en septembre 2026.
+                Pour moins cher, FlashMap Plus ajoute un coach de méthode et ne compte ni vos tests ni vos
+                sessions. Tarifs Quizlet relevés sur quizlet.com en septembre 2026.
               </p>
             </div>
+
+            <p className="text-gray-700 mb-5 leading-relaxed">
+              Là où les autres applications de flashcards vous donnent des cartes, FlashMap Plus vous accompagne
+              jusqu'à la réussite, à votre rythme&nbsp;: il apprend votre mémoire, planifie vos révisions jusqu'au
+              jour du contrôle et vous guide dans votre méthode.
+            </p>
 
             <a
               href={PLUS_PAGE_URL}
