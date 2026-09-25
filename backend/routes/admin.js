@@ -789,4 +789,130 @@ router.get('/analytics/events', adminAuth, async (req, res) => {
   }
 });
 
+// ============================================
+// Sondage FlashMap Plus
+// ============================================
+
+/**
+ * GET /api/admin/survey/plus
+ * Résultats du sondage FlashMap Plus (seule la dernière réponse de chaque utilisateur compte)
+ */
+router.get('/survey/plus', adminAuth, async (req, res) => {
+  try {
+    const { period = 'all' } = req.query;
+
+    const periodMap = {
+      '7d': '7 days',
+      '30d': '30 days',
+      '90d': '90 days',
+      'all': '10 years'
+    };
+    const periodInterval = periodMap[period] || '10 years';
+
+    const answersResult = await db.query(`
+      SELECT DISTINCT ON (user_id) user_id, event_data, created_at
+      FROM analytics_events
+      WHERE event_type = 'plus_survey_answered'
+        AND created_at > NOW() - INTERVAL '${periodInterval}'
+      ORDER BY user_id, created_at DESC
+    `);
+
+    const laterResult = await db.query(`
+      SELECT COUNT(*) as later_count, COUNT(DISTINCT user_id) as later_users
+      FROM analytics_events
+      WHERE event_type = 'plus_survey_later'
+        AND created_at > NOW() - INTERVAL '${periodInterval}'
+    `);
+
+    const linkResult = await db.query(`
+      SELECT COUNT(DISTINCT user_id) as link_users
+      FROM analytics_events
+      WHERE event_type = 'plus_survey_link_clicked'
+        AND created_at > NOW() - INTERVAL '${periodInterval}'
+    `);
+
+    const answers = { yes_monthly: 0, yes_annual: 0, no: 0 };
+    const reasons = { too_expensive: 0, free_is_enough: 0, cant_pay_online: 0, not_interested: 0, other: 0, none: 0 };
+    const responses = [];
+
+    for (const row of answersResult.rows) {
+      const data = typeof row.event_data === 'string' ? JSON.parse(row.event_data) : (row.event_data || {});
+      if (!(data.answer in answers)) continue;
+      answers[data.answer]++;
+
+      if (data.answer === 'no') {
+        reasons[data.reason in reasons ? data.reason : 'none']++;
+      }
+
+      responses.push({
+        userId: row.user_id,
+        answer: data.answer,
+        reason: data.reason || null,
+        comment: data.comment || null,
+        createdAt: row.created_at
+      });
+    }
+
+    responses.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json({
+      success: true,
+      period,
+      respondents: answers.yes_monthly + answers.yes_annual + answers.no,
+      answers,
+      reasons,
+      responses,
+      later: {
+        count: parseInt(laterResult.rows[0].later_count) || 0,
+        users: parseInt(laterResult.rows[0].later_users) || 0
+      },
+      linkClickUsers: parseInt(linkResult.rows[0].link_users) || 0
+    });
+
+  } catch (error) {
+    console.error('[Admin/Survey/Plus] Erreur:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la récupération du sondage',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/survey/plus/:userId
+ * Supprime tous les événements du sondage FlashMap Plus d'un utilisateur
+ * (réponses, reports, clics), par exemple pour retirer des réponses de test
+ */
+router.delete('/survey/plus/:userId', adminAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await db.query(
+      `DELETE FROM analytics_events
+       WHERE user_id = $1
+         AND event_type IN ('plus_survey_answered', 'plus_survey_later', 'plus_survey_link_clicked')`,
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: 'Aucune réponse trouvée',
+        details: 'Cet utilisateur n\'a aucun événement de sondage'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      deleted: result.rowCount
+    });
+
+  } catch (error) {
+    console.error('[Admin/Survey/Delete] Erreur:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la suppression des réponses',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

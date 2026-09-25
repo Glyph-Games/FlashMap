@@ -150,6 +150,14 @@
           Analytics
         </button>
         <button
+          onclick="showTab('survey')"
+          id="tab-survey"
+          class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+        >
+          <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+          Sondage Plus
+        </button>
+        <button
           onclick="showTab('settings')"
           id="tab-settings"
           class="px-6 py-4 font-medium transition-all tab-button border-b-4 border-transparent hover:border-gray-300 hover:bg-gray-50 flex items-center gap-2"
@@ -494,9 +502,95 @@
             <option value="game_started">Jeux démarrés</option>
             <option value="game_completed">Jeux terminés</option>
             <option value="magic_lesson_used">Magic Lesson</option>
+            <option value="plus_survey_answered">Sondage Plus</option>
           </select>
         </div>
         <div id="recentEventsList" class="space-y-2 max-h-96 overflow-y-auto">
+          <p class="text-gray-500 text-center py-4">Chargement...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Survey Tab (Sondage FlashMap Plus) -->
+    <div id="content-survey" class="tab-content hidden">
+      <div class="flex items-center justify-between gap-4 flex-wrap mb-6 animate-fade-in">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">Sondage FlashMap Plus</h2>
+          <p class="text-sm text-gray-500">« Seriez-vous prêt à payer 2,40 € par mois pour FlashMap Plus ? » · dernière réponse de chaque utilisateur</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="changeSurveyPeriod('7d')" id="survey-period-7d" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm survey-period-btn">7 jours</button>
+          <button onclick="changeSurveyPeriod('30d')" id="survey-period-30d" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm survey-period-btn">30 jours</button>
+          <button onclick="changeSurveyPeriod('90d')" id="survey-period-90d" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm survey-period-btn">90 jours</button>
+          <button onclick="changeSurveyPeriod('all')" id="survey-period-all" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm survey-period-btn">Tout</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-fade-in">
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Répondants</h3>
+            <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
+          </div>
+          <p id="survey-respondents" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Utilisateurs ayant répondu</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Prêts à payer</h3>
+            <i data-lucide="thumbs-up" class="w-4 h-4 text-green-600"></i>
+          </div>
+          <p id="survey-yes-rate" class="text-2xl font-bold text-gray-800">-</p>
+          <p id="survey-yes-count" class="text-xs text-gray-500 mt-1">Oui, mensuel ou annuel</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">« Plus tard »</h3>
+            <i data-lucide="clock" class="w-4 h-4 text-orange-600"></i>
+          </div>
+          <p id="survey-later" class="text-2xl font-bold text-gray-800">-</p>
+          <p id="survey-later-count" class="text-xs text-gray-500 mt-1">Utilisateurs ayant reporté</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-medium text-gray-600">Page Plus consultée</h3>
+            <i data-lucide="external-link" class="w-4 h-4 text-blue-600"></i>
+          </div>
+          <p id="survey-link" class="text-2xl font-bold text-gray-800">-</p>
+          <p class="text-xs text-gray-500 mt-1">Utilisateurs ayant cliqué le lien</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 animate-fade-in">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Réponses</h3>
+          <div id="survey-answers" class="space-y-4">
+            <p class="text-gray-500 text-center py-4">Chargement...</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Pourquoi « Non » ?</h3>
+          <div id="survey-reasons" class="space-y-4">
+            <p class="text-gray-500 text-center py-4">Chargement...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+        <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div>
+            <h3 class="text-lg font-bold text-gray-800">Réponses</h3>
+            <p class="text-sm text-gray-500">Supprimer les réponses d'un utilisateur retire aussi ses « Plus tard » et ses clics (utile pour vos tests)</p>
+          </div>
+          <input
+            type="text"
+            id="survey-user-filter"
+            oninput="renderSurveyResponses()"
+            placeholder="Filtrer par ID utilisateur"
+            class="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 w-full sm:w-72"
+          >
+        </div>
+        <div id="survey-responses" class="space-y-3 max-h-[32rem] overflow-y-auto">
           <p class="text-gray-500 text-center py-4">Chargement...</p>
         </div>
       </div>
@@ -945,6 +1039,8 @@
         loadShares();
       } else if (tabName === 'analytics') {
         loadAnalytics();
+      } else if (tabName === 'survey') {
+        loadSurvey();
       } else if (tabName === 'settings') {
         loadUsers();
       }
@@ -2152,7 +2248,10 @@
           'lesson_imported': 'Leçons importées',
           'game_started': 'Jeux démarrés',
           'game_completed': 'Jeux terminés',
-          'magic_lesson_used': 'Magic Lesson'
+          'magic_lesson_used': 'Magic Lesson',
+          'plus_survey_answered': 'Sondage Plus : réponses',
+          'plus_survey_later': 'Sondage Plus : reports',
+          'plus_survey_link_clicked': 'Sondage Plus : page consultée'
         };
 
         const colors = [
@@ -2163,7 +2262,10 @@
           '#f59e0b', // amber
           '#ef4444', // red
           '#8b5cf6', // violet
-          '#eab308'  // yellow
+          '#eab308', // yellow
+          '#6366f1', // indigo
+          '#f97316', // orange
+          '#0ea5e9'  // sky
         ];
 
         const labels = Object.keys(eventCounts).map(key => eventLabels[key] || key);
@@ -2317,7 +2419,10 @@
           'lesson_imported': 'Leçon importée',
           'game_started': 'Jeu démarré',
           'game_completed': 'Jeu terminé',
-          'magic_lesson_used': 'Magic Lesson utilisé'
+          'magic_lesson_used': 'Magic Lesson utilisé',
+          'plus_survey_answered': 'Réponse au sondage Plus',
+          'plus_survey_later': 'Sondage Plus reporté',
+          'plus_survey_link_clicked': 'Page Plus consultée'
         };
 
         const eventIcons = {
@@ -2328,7 +2433,10 @@
           'lesson_imported': 'download',
           'game_started': 'play',
           'game_completed': 'check-circle',
-          'magic_lesson_used': 'sparkles'
+          'magic_lesson_used': 'sparkles',
+          'plus_survey_answered': 'clipboard-list',
+          'plus_survey_later': 'clock',
+          'plus_survey_link_clicked': 'external-link'
         };
 
         const eventColors = {
@@ -2339,7 +2447,10 @@
           'lesson_imported': 'bg-cyan-100 text-cyan-600',
           'game_started': 'bg-green-100 text-green-600',
           'game_completed': 'bg-emerald-100 text-emerald-600',
-          'magic_lesson_used': 'bg-pink-100 text-pink-600'
+          'magic_lesson_used': 'bg-pink-100 text-pink-600',
+          'plus_survey_answered': 'bg-indigo-100 text-indigo-600',
+          'plus_survey_later': 'bg-orange-100 text-orange-600',
+          'plus_survey_link_clicked': 'bg-sky-100 text-sky-600'
         };
 
         if (events.length === 0) {
@@ -2410,6 +2521,178 @@
       if (seconds < 604800) return `${Math.floor(seconds / 86400)}j`;
 
       return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    }
+
+    // ============================================
+    // Sondage FlashMap Plus
+    // ============================================
+
+    let currentSurveyPeriod = 'all';
+    let surveyResponses = [];
+
+    const SURVEY_ANSWER_LABELS = {
+      yes_monthly: { label: 'Oui, à 2,40 € par mois', color: 'bg-purple-600' },
+      yes_annual: { label: 'Oui, à 24 € par an', color: 'bg-pink-500' },
+      no: { label: 'Non', color: 'bg-gray-400' }
+    };
+
+    const SURVEY_REASON_LABELS = {
+      too_expensive: 'C\'est trop cher',
+      free_is_enough: 'La version gratuite me suffit',
+      cant_pay_online: 'Je ne peux pas payer en ligne',
+      not_interested: 'Les fonctionnalités ne m\'intéressent pas',
+      other: 'Autre',
+      none: 'Sans raison donnée'
+    };
+
+    // Échappe aussi les guillemets : le résultat peut aller dans un attribut
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // ID analytics de ce navigateur (l'admin est servi sur le même domaine que l'app)
+    function getOwnAnalyticsId() {
+      try {
+        return localStorage.getItem('flashmap_user_id');
+      } catch {
+        return null;
+      }
+    }
+
+    function surveyBar(label, count, total, colorClass) {
+      const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+      return `
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-medium text-gray-700">${label}</span>
+            <span class="text-gray-500">${count} · ${percent} %</span>
+          </div>
+          <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-3 ${colorClass} rounded-full" style="width: ${percent}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadSurvey() {
+      try {
+        const data = await apiRequest(`/survey/plus?period=${currentSurveyPeriod}`);
+        const { respondents, answers, reasons, responses, later, linkClickUsers } = data;
+        surveyResponses = responses || [];
+        const yesCount = answers.yes_monthly + answers.yes_annual;
+
+        document.getElementById('survey-respondents').textContent = respondents;
+        document.getElementById('survey-yes-rate').textContent = respondents > 0 ? `${Math.round((yesCount / respondents) * 100)} %` : '-';
+        document.getElementById('survey-yes-count').textContent = `${yesCount} « Oui », mensuel ou annuel`;
+        document.getElementById('survey-later').textContent = later.users;
+        document.getElementById('survey-later-count').textContent = `${later.count} report${later.count > 1 ? 's' : ''} au total`;
+        document.getElementById('survey-link').textContent = linkClickUsers;
+
+        document.getElementById('survey-answers').innerHTML = respondents > 0
+          ? Object.entries(SURVEY_ANSWER_LABELS)
+              .map(([key, { label, color }]) => surveyBar(label, answers[key], respondents, color))
+              .join('')
+          : '<p class="text-gray-500 text-center py-4">Aucune réponse pour l\'instant</p>';
+
+        document.getElementById('survey-reasons').innerHTML = answers.no > 0
+          ? Object.entries(SURVEY_REASON_LABELS)
+              .map(([key, label]) => surveyBar(label, reasons[key], answers.no, 'bg-orange-400'))
+              .join('')
+          : '<p class="text-gray-500 text-center py-4">Aucun « Non » pour l\'instant</p>';
+
+        renderSurveyResponses();
+      } catch (error) {
+        console.error('Erreur sondage Plus:', error);
+        document.getElementById('survey-answers').innerHTML = `
+          <p class="text-red-500 text-center py-4">Erreur lors du chargement du sondage</p>
+        `;
+      }
+    }
+
+    function renderSurveyResponses() {
+      const container = document.getElementById('survey-responses');
+      const filter = document.getElementById('survey-user-filter').value.trim().toLowerCase();
+      const ownId = getOwnAnalyticsId();
+      const canDelete = hasPermission('admin');
+
+      const responses = filter
+        ? surveyResponses.filter(r => r.userId.toLowerCase().includes(filter))
+        : surveyResponses;
+
+      if (responses.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 text-center py-4">${filter ? 'Aucune réponse pour cet ID' : 'Aucune réponse pour l\'instant'}</p>`;
+        return;
+      }
+
+      container.innerHTML = responses.map(r => {
+        const answer = SURVEY_ANSWER_LABELS[r.answer];
+        const date = new Date(r.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const isOwn = ownId && r.userId === ownId;
+
+        return `
+          <div class="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 text-xs font-semibold rounded text-white ${answer ? answer.color : 'bg-gray-400'}">${answer ? answer.label : escapeHtml(r.answer)}</span>
+                ${r.reason ? `<span class="text-sm text-gray-700">${SURVEY_REASON_LABELS[r.reason] || escapeHtml(r.reason)}</span>` : ''}
+                ${isOwn ? '<span class="px-2 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-700">Ce navigateur</span>' : ''}
+              </div>
+              ${r.comment ? `<p class="text-gray-800 text-sm whitespace-pre-line break-words mt-2">${escapeHtml(r.comment)}</p>` : ''}
+              <p class="text-xs text-gray-500 mt-2 break-all">ID : ${escapeHtml(r.userId)} · ${date}</p>
+            </div>
+            ${canDelete ? `
+              <button
+                data-user-id="${escapeHtml(r.userId)}"
+                onclick="deleteSurveyResponses(this.dataset.userId)"
+                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                title="Supprimer les réponses de cet utilisateur"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function deleteSurveyResponses(userId) {
+      if (!hasPermission('admin')) {
+        alert('⛔ Accès refusé\n\nVous devez être admin ou supérieur pour supprimer des réponses.');
+        return;
+      }
+
+      if (!confirm(`Supprimer toutes les réponses au sondage de l'utilisateur ${userId} ?\n\nSes « Plus tard » et ses clics vers la page Plus seront aussi supprimés.`)) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/survey/plus/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+        loadSurvey();
+      } catch (error) {
+        console.error('Erreur lors de la suppression des réponses:', error);
+        alert('Erreur lors de la suppression des réponses');
+      }
+    }
+
+    function changeSurveyPeriod(period) {
+      currentSurveyPeriod = period;
+
+      document.querySelectorAll('.survey-period-btn').forEach(btn => {
+        btn.classList.remove('bg-purple-600', 'text-white', 'hover:bg-purple-700');
+        btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+      });
+      const activeBtn = document.getElementById(`survey-period-${period}`);
+      activeBtn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+      activeBtn.classList.add('bg-purple-600', 'text-white', 'hover:bg-purple-700');
+
+      loadSurvey();
     }
 
     // Changer la période
