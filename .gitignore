@@ -25,3 +25,6 @@ yarn-error.log*
 
 # Claude memory
 .claude/
+
+# Site vitrine (non suivi)
+/public/about/

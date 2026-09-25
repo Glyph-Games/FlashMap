@@ -1202,6 +1202,7 @@ export default function FlashcardApp() {
         name: editingLessonName
       }
     }));
+    if (editingLessonName !== lessons[editingLessonId]?.name) removeAiSignature(editingLessonId);
 
     // Analytics: Track lesson edit
     analytics.trackLessonEdited(editingLessonId);
@@ -2459,6 +2460,16 @@ Exemples de réponses COURTES (à suivre) :
     }
   };
 
+  // Retire la signature du MCP dès que l'utilisateur modifie le contenu de la leçon :
+  // une leçon modifiée n'est plus « créée par » l'IA
+  const removeAiSignature = (lessonId) => {
+    setLessons(prev => {
+      if (!prev[lessonId]?._generatedBy) return prev;
+      const { _generatedBy, ...lesson } = prev[lessonId];
+      return { ...prev, [lessonId]: lesson };
+    });
+  };
+
   const addCard = () => {
     // Au moins un contenu (texte ou image) pour la question ET la réponse
     const hasFront = newFront.trim() || newCardFrontImage;
@@ -2478,6 +2489,7 @@ Exemples de réponses COURTES (à suivre) :
         repetitions: 0
       };
       setCards([...cards, newCard]);
+      removeAiSignature(currentLessonId);
       setNewFront('');
       setNewBack('');
       setNewCardFrontImage(null);
@@ -2489,6 +2501,7 @@ Exemples de réponses COURTES (à suivre) :
 
   const deleteCard = (id) => {
     setCards(cards.filter(c => c.id !== id));
+    removeAiSignature(currentLessonId);
   };
 
   const startEditingCard = (card) => {
@@ -2514,6 +2527,7 @@ Exemples de réponses COURTES (à suivre) :
         ? { ...c, front: editingCardFront, back: editingCardBack, frontImage: editingCardFrontImage, backImage: editingCardBackImage, wrongAnswers: editingWrongAnswers.filter(a => a.trim()) }
         : c
     ));
+    removeAiSignature(currentLessonId);
 
     setEditingCardId(null);
     setEditingCardFront('');
