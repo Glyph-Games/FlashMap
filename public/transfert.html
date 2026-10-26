@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <title>FlashMap · Transfert vers FlashMap Plus</title>
+</head>
+<body>
+<script>
+// Passerelle de transfert vers FlashMap Plus.
+//
+// FlashMap Plus (sur un sous-domaine de flashmap.app) charge cette page dans une iframe
+// invisible pour récupérer, à la demande de l'abonné, les leçons que la Community Edition
+// enregistre dans ce navigateur. La page ne fait que lire : elle ne modifie rien et ne crée
+// jamais la base IndexedDB si elle n'existe pas.
+//
+// Elle ne répond qu'aux pages de FlashMap (sous-domaines https de flashmap.app ; localhost
+// pour le développement). Un autre site qui l'intègre n'obtient rien : il n'est pas sur la
+// liste, et les navigateurs lui donneraient de toute façon un stockage cloisonné, donc vide.
+//
+// Protocole (postMessage) :
+//   demande : { type: 'flashmap-ce-transfer:request', requestId }
+//   réponse : { type: 'flashmap-ce-transfer:data', requestId, data }
+//   data : { lessons: { id: leçon }, folders: { id: dossier }, externalModes: { id: mode } },
+//          ou null si ce navigateur n'a aucune leçon de la Community Edition.
+(function () {
+  'use strict';
+
+  var ALLOWED_ORIGIN = /^(https:\/\/([a-z0-9-]+\.)+flashmap\.app|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/;
+
+  function readJson(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Leçons complètes de la base IndexedDB de l'app (src/utils/db.js), ou null.
+  function readLessonsFromIDB() {
+    return new Promise(function (resolve) {
+      var request;
+      try {
+        request = indexedDB.open('flashmap-db');
+      } catch (e) {
+        resolve(null);
+        return;
+      }
+      // Base absente : on annule sa création (la demande échoue, onerror répond null).
+      request.onupgradeneeded = function () { request.transaction.abort(); };
+      request.onerror = function () { resolve(null); };
+      request.onblocked = function () { resolve(null); };
+      request.onsuccess = function () {
+        var db = request.result;
+        if (!db.objectStoreNames.contains('lessons')) {
+          db.close();
+          resolve(null);
+          return;
+        }
+        var all = db.transaction('lessons', 'readonly').objectStore('lessons').getAll();
+        all.onsuccess = function () {
+          var lessons = {};
+          all.result.forEach(function (entry) {
+            var lesson = Object.assign({}, entry);
+            delete lesson.id;
+            lessons[entry.id] = lesson;
+          });
+          db.close();
+          resolve(lessons);
+        };
+        all.onerror = function () {
+          db.close();
+          resolve(null);
+        };
+      };
+    });
+  }
+
+  // Format v2 : métadonnées et dossiers dans localStorage, leçons dans IndexedDB.
+  // Format v1 (avant IndexedDB) : tout dans localStorage.
+  function collect() {
+    var saved = readJson('studyQuestData') || {};
+    var fromStorage = saved.version !== 2 && saved.lessons && typeof saved.lessons === 'object' ? saved.lessons : null;
+    return (fromStorage ? Promise.resolve(fromStorage) : readLessonsFromIDB()).then(function (lessons) {
+      if (!lessons || Object.keys(lessons).length === 0) return null;
+      return {
+        lessons: lessons,
+        folders: saved.folders && typeof saved.folders === 'object' ? saved.folders : null,
+        externalModes: readJson('flashmapExternalModes') || {},
+      };
+    });
+  }
+
+  window.addEventListener('message', function (event) {
+    if (!ALLOWED_ORIGIN.test(event.origin)) return;
+    var message = event.data;
+    if (!message || message.type !== 'flashmap-ce-transfer:request') return;
+    collect().then(function (data) {
+      event.source.postMessage({ type: 'flashmap-ce-transfer:data', requestId: message.requestId, data: data }, event.origin);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -60,6 +60,20 @@ npm run build
 - **Local / personal build**: enter your key in the app when prompted (it is stored in your browser), or set `REACT_APP_GEMINI_API_KEY` in a `.env` file at the project root before `npm start` / `npm run build`.
 - **Public deployment**: never set `REACT_APP_GEMINI_API_KEY` for a build served to other people: it is embedded in the JavaScript bundle and anyone can read it. Instead, put the key in the backend (`GEMINI_API_KEY` in `backend/.env`) and build the frontend with `REACT_APP_MAGIC_PROXY=true`. Users without their own key will then generate Magic Lessons through the backend, and the key never reaches their browser.
 
+### Transfer to FlashMap Plus
+
+`public/transfert.html` lets FlashMap Plus, served from a subdomain of `flashmap.app`, read the lessons this browser keeps for the Community Edition, at the subscriber's request, through an invisible iframe. The page only reads (it never creates the IndexedDB database), and only answers pages served from `https://*.flashmap.app` (and `localhost`, for development).
+
+When deploying, allow this page, and only this one, to be framed by those subdomains. With Nginx:
+
+```nginx
+location = /transfert.html {
+    add_header Content-Security-Policy "frame-ancestors https://*.flashmap.app" always;
+}
+```
+
+An `add_header` in this location replaces the ones inherited from the `server` block, including any `X-Frame-Options`, which would otherwise block the iframe.
+
 ## Language
 
 Currently FlashMap is developed and available only in French, but your contribution to translate FlashMap into another language will be greatly appreciated.
