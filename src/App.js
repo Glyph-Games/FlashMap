@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Brain, Plus, RotateCcw, CheckCircle, Trophy, Zap, Target, Gamepad2, Edit, Sparkles, BookOpen, Trash2, Download, Upload, MoreVertical, Folder, FolderPlus, Coffee, Heart, Share2, X, Settings, ArrowLeftRight, Copy, Globe, ExternalLink, Loader, ChevronLeft, ChevronRight, Star, Search } from 'lucide-react';
 import analytics from './utils/analytics';
 import { getAiLessonInfo, AiLessonHeader } from './components/AiGeneratedLesson';
-import PlusSurveyModal from './components/PlusSurveyModal';
-import { shouldShowPlusSurveyOnStartup } from './utils/plusSurvey';
 
 // Helper : ajuste la luminosité d'une couleur hex (factor > 1 = plus clair, < 1 = plus sombre)
 function adjustColor(hex, factor) {
@@ -240,8 +238,6 @@ export default function FlashcardApp() {
   const [toastAction, setToastAction] = useState(null);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showDonateModal, setShowDonateModal] = useState(false);
-  // Sondage FlashMap Plus : décidé au démarrage, avant que l'app ne sauvegarde ses données par défaut
-  const [showPlusSurvey, setShowPlusSurvey] = useState(shouldShowPlusSurveyOnStartup);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMagicMenu, setShowMagicMenu] = useState(false);
@@ -3799,10 +3795,6 @@ Exemples de réponses COURTES (à suivre) :
             </div>
           </div>
         </div>
-      )}
-
-      {showPlusSurvey && !migrationProgress && (
-        <PlusSurveyModal onClose={() => setShowPlusSurvey(false)} />
       )}
 
       {showDonateModal && (

@@ -202,33 +202,6 @@ class Analytics {
   }
 
   /**
-   * Track la réponse au sondage FlashMap Plus
-   */
-  trackPlusSurveyAnswered(answer, reason, comment) {
-    const eventData = {
-      answer // 'yes_monthly', 'yes_annual' ou 'no'
-    };
-    if (reason) eventData.reason = reason;
-    if (comment) eventData.comment = comment;
-
-    this.track('plus_survey_answered', eventData);
-  }
-
-  /**
-   * Track le report du sondage FlashMap Plus (« Plus tard »)
-   */
-  trackPlusSurveyLater(laterCount) {
-    this.track('plus_survey_later', { later_count: laterCount });
-  }
-
-  /**
-   * Track le clic sur « Découvrir FlashMap Plus » depuis le sondage
-   */
-  trackPlusSurveyLinkClicked() {
-    this.track('plus_survey_link_clicked');
-  }
-
-  /**
    * Désactiver le tracking (pour respecter les préférences utilisateur)
    */
   disable() {
